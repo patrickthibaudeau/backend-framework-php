@@ -124,13 +124,16 @@ function handleHealth()
             $status['services']['redis'] = 'extension_loaded';
         }
 
-        // Basic PHP extensions check
-        $status['php_extensions'] = [
-            'pdo' => extension_loaded('pdo'),
-            'pdo_mysql' => extension_loaded('pdo_mysql'),
-            'json' => extension_loaded('json'),
-            'curl' => extension_loaded('curl')
-        ];
+        // Get all loaded PHP extensions
+        $loadedExtensions = get_loaded_extensions();
+        $status['php_extensions'] = [];
+
+        foreach ($loadedExtensions as $extension) {
+            $status['php_extensions'][$extension] = true;
+        }
+
+        // Sort extensions alphabetically for better readability
+        ksort($status['php_extensions']);
 
     } catch (Exception $e) {
         $status['status'] = 'degraded';
