@@ -30,7 +30,7 @@ case "$1" in
 
     "shell")
         echo "🐚 Opening shell in PHP container..."
-        docker compose exec php bash
+        docker compose exec web bash
         ;;
 
     "web")
@@ -46,24 +46,45 @@ case "$1" in
 
     "test")
         echo "🧪 Running configuration tests..."
-        docker compose exec php php test-simple.php
+        docker compose exec web php test-simple.php
+        ;;
+
+    "test-db")
+        echo "🗄️ Running database tests..."
+        docker compose exec web php test-database.php
+        ;;
+
+    "db")
+        shift
+        echo "🗄️ Running database command: $@"
+        docker compose exec web php -r "
+        require_once 'vendor/autoload.php';
+        require_once 'src/Core/helpers.php';
+        \$result = \$DB->$1;
+        var_dump(\$result);
+        "
+        ;;
+
+    "mysql")
+        echo "🐬 Connecting to MySQL..."
+        docker compose exec mysql mysql -u devframework -pdevframework devframework
         ;;
 
     "config")
         shift
         echo "⚙️ Running configuration command: $@"
-        docker compose exec php php config-simple.php "$@"
+        docker compose exec web php config-simple.php "$@"
         ;;
 
     "composer")
         shift
         echo "📦 Running Composer command: $@"
-        docker compose exec php composer "$@"
+        docker compose exec web composer "$@"
         ;;
 
     "logs")
         echo "📋 Showing container logs..."
-        docker compose logs -f php
+        docker compose logs -f web
         ;;
 
     "status")
@@ -89,6 +110,8 @@ case "$1" in
         echo "  build     - Build/rebuild containers"
         echo "  shell     - Open shell in PHP container"
         echo "  test      - Run configuration tests"
+        echo "  test-db   - Run database tests"
+        echo "  mysql     - Connect to MySQL database"
         echo "  config    - Run configuration commands"
         echo "  composer  - Run Composer commands"
         echo "  logs      - Show PHP container logs"
@@ -101,5 +124,7 @@ case "$1" in
         echo "  ./dev.sh config validate"
         echo "  ./dev.sh composer install"
         echo "  ./dev.sh test"
+        echo "  ./dev.sh test-db"
+        echo "  ./dev.sh mysql"
         ;;
 esac

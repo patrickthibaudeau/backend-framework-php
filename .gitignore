@@ -6,6 +6,7 @@
 .env
 .env.local
 .env.*.local
+.env.docker
 
 # IDE files
 .idea/
@@ -21,6 +22,9 @@ Thumbs.db
 /storage/logs/
 /storage/cache/
 *.log
+
+# Database files
+mysql_data/
 
 # Composer
 composer.phar

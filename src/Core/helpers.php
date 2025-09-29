@@ -1,6 +1,10 @@
 <?php
 
 use DevFramework\Core\Config\Configuration;
+use DevFramework\Core\Database\DatabaseFactory;
+
+// Initialize global database connection
+DatabaseFactory::createGlobal();
 
 if (!function_exists('config')) {
     /**
@@ -142,5 +146,115 @@ if (!function_exists('logger')) {
         $logEntry = "[{$timestamp}] [{$level}] {$message}" . PHP_EOL;
 
         return file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX) !== false;
+    }
+}
+
+if (!function_exists('db')) {
+    /**
+     * Get global database instance
+     *
+     * @return \DevFramework\Core\Database\Database
+     */
+    function db(): \DevFramework\Core\Database\Database
+    {
+        global $DB;
+
+        if (!isset($DB)) {
+            DatabaseFactory::createGlobal();
+        }
+
+        return $DB;
+    }
+}
+
+if (!function_exists('db_get_record')) {
+    /**
+     * Get a single database record
+     *
+     * @param string $table Table name
+     * @param array $conditions WHERE conditions
+     * @param string $sort ORDER BY clause
+     * @param string $fields Fields to select
+     * @param int $strictness IGNORE_MISSING or MUST_EXIST
+     * @return object|null
+     */
+    function db_get_record(string $table, array $conditions = [], string $sort = '', string $fields = '*', int $strictness = IGNORE_MISSING): ?object
+    {
+        return db()->get_record($table, $conditions, $sort, $fields, $strictness);
+    }
+}
+
+if (!function_exists('db_get_records')) {
+    /**
+     * Get multiple database records
+     *
+     * @param string $table Table name
+     * @param array $conditions WHERE conditions
+     * @param string $sort ORDER BY clause
+     * @param string $fields Fields to select
+     * @param int $limitfrom OFFSET
+     * @param int $limitnum LIMIT
+     * @return array
+     */
+    function db_get_records(string $table, array $conditions = [], string $sort = '', string $fields = '*', int $limitfrom = 0, int $limitnum = 0): array
+    {
+        return db()->get_records($table, $conditions, $sort, $fields, $limitfrom, $limitnum);
+    }
+}
+
+if (!function_exists('db_insert_record')) {
+    /**
+     * Insert a database record
+     *
+     * @param string $table Table name
+     * @param object|array $data Record data
+     * @param bool $returnId Whether to return the inserted ID
+     * @return int|bool
+     */
+    function db_insert_record(string $table, object|array $data, bool $returnId = true): int|bool
+    {
+        return db()->insert_record($table, $data, $returnId);
+    }
+}
+
+if (!function_exists('db_update_record')) {
+    /**
+     * Update a database record
+     *
+     * @param string $table Table name
+     * @param object|array $data Record data (must include 'id')
+     * @return bool
+     */
+    function db_update_record(string $table, object|array $data): bool
+    {
+        return db()->update_record($table, $data);
+    }
+}
+
+if (!function_exists('db_delete_records')) {
+    /**
+     * Delete database records
+     *
+     * @param string $table Table name
+     * @param array $conditions WHERE conditions
+     * @return bool
+     */
+    function db_delete_records(string $table, array $conditions): bool
+    {
+        return db()->delete_records($table, $conditions);
+    }
+}
+
+if (!function_exists('db_count_records')) {
+    /**
+     * Count database records
+     *
+     * @param string $table Table name
+     * @param array $conditions WHERE conditions
+     * @return int
+     */
+    function db_count_records(string $table, array $conditions = []): int
+    {
+        return db()->count_records($table, $conditions);
     }
 }

@@ -160,6 +160,7 @@ class Configuration
             ],
             'database' => [
                 'default' => $this->env('DB_CONNECTION', 'mysql'),
+                'prefix' => $this->env('DB_PREFIX', ''),
                 'connections' => [
                     'mysql' => [
                         'driver' => 'mysql',
