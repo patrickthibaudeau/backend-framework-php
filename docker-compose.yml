@@ -8,19 +8,8 @@ services:
       - ./src:/var/www/src
       - ./composer.json:/var/www/composer.json
       - ./storage/logs:/var/log/app
-    environment:
-      # PHP Configuration from environment variables
-      - PHP_MEMORY_LIMIT=${PHP_MEMORY_LIMIT:-512M}
-      - PHP_UPLOAD_MAX_FILESIZE=${PHP_UPLOAD_MAX_FILESIZE:-128M}
-      - PHP_POST_MAX_SIZE=${PHP_POST_MAX_SIZE:-128M}
-      - PHP_MAX_EXECUTION_TIME=${PHP_MAX_EXECUTION_TIME:-600}
-      - PHP_OPCACHE_ENABLE=${PHP_OPCACHE_ENABLE:-1}
-      - PHP_OPCACHE_MEMORY=${PHP_OPCACHE_MEMORY:-256}
-      # Application environment
-      - APP_ENV=${APP_ENV:-development}
-      - APP_DEBUG=${APP_DEBUG:-true}
     env_file:
-      - env.docker.example
+      - .env.docker
     restart: unless-stopped
     command: >
       sh -c "/usr/local/bin/configure-php.sh && 
