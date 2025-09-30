@@ -112,33 +112,27 @@ class ModuleManager
     }
 
     /**
-     * Load all discovered modules
+     * Get the path to a specific module
      */
-    public function loadAllModules(): void
+    public function getModulePath(string $moduleName): string
     {
-        foreach (array_keys($this->modules) as $moduleName) {
-            $this->loadModule($moduleName);
+        if (!isset($this->modules[$moduleName])) {
+            throw new ModuleException("Module {$moduleName} not found");
         }
-    }
 
-    /**
-     * Check if a module is loaded
-     */
-    public function isModuleLoaded(string $moduleName): bool
-    {
-        return isset($this->modules[$moduleName]) && $this->modules[$moduleName]['loaded'];
+        return $this->modules[$moduleName]['path'];
     }
 
     /**
      * Get module information
      */
-    public function getModule(string $moduleName): ?array
+    public function getModuleInfo(string $moduleName): ?array
     {
         return $this->modules[$moduleName] ?? null;
     }
 
     /**
-     * Get all modules
+     * Get all discovered modules
      */
     public function getAllModules(): array
     {
@@ -146,11 +140,31 @@ class ModuleManager
     }
 
     /**
-     * Get loaded modules
+     * Check if a module is loaded
      */
-    public function getLoadedModules(): array
+    public function isModuleLoaded(string $moduleName): bool
     {
-        return array_filter($this->modules, fn($module) => $module['loaded']);
+        return isset($this->loadedModules[$moduleName]);
+    }
+
+    /**
+     * Load all discovered modules
+     */
+    public function loadAllModules(): void
+    {
+        foreach ($this->modules as $moduleName => $moduleInfo) {
+            if (!$this->isModuleLoaded($moduleName)) {
+                $this->loadModule($moduleName);
+            }
+        }
+    }
+
+    /**
+     * Get the modules directory path
+     */
+    public function getModulesPath(): string
+    {
+        return $this->modulesPath;
     }
 
     /**
@@ -164,13 +178,5 @@ class ModuleManager
 
         $langPath = $this->modules[$moduleName]['path'] . '/lang/' . $language;
         return is_dir($langPath) ? $langPath : null;
-    }
-
-    /**
-     * Get modules path
-     */
-    public function getModulesPath(): string
-    {
-        return $this->modulesPath;
     }
 }

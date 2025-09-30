@@ -58,23 +58,29 @@ return [
             ],
             'email_verified' => [
                 'type' => 'boolean',
-                'default' => false,
+                'default' => 0,
                 'null' => false,
                 'comment' => 'Whether email is verified'
             ],
             'last_login' => [
-                'type' => 'timestamp',
+                'type' => 'int',
+                'length' => 11,
                 'null' => true,
+                'default' => null,
                 'comment' => 'Unix timestamp of last login'
             ],
             'timecreated' => [
-                'type' => 'timestamp',
+                'type' => 'int',
+                'length' => 11,
                 'null' => false,
+                'default' => 0,
                 'comment' => 'Unix timestamp when user was created'
             ],
             'timemodified' => [
-                'type' => 'timestamp',
+                'type' => 'int',
+                'length' => 11,
                 'null' => false,
+                'default' => 0,
                 'comment' => 'Unix timestamp when user was last modified'
             ]
         ],
@@ -138,17 +144,21 @@ return [
                 'comment' => 'User preferred language'
             ],
             'preferences' => [
-                'type' => 'json',
+                'type' => 'longtext',
                 'null' => true,
-                'comment' => 'User preferences as JSON'
+                'comment' => 'User preferences as JSON text'
             ],
             'timecreated' => [
-                'type' => 'timestamp',
-                'null' => false
+                'type' => 'int',
+                'length' => 11,
+                'null' => false,
+                'default' => 0
             ],
             'timemodified' => [
-                'type' => 'timestamp',
-                'null' => false
+                'type' => 'int',
+                'length' => 11,
+                'null' => false,
+                'default' => 0
             ]
         ],
         'indexes' => [
@@ -194,17 +204,23 @@ return [
                 'comment' => 'Serialized session data'
             ],
             'expires_at' => [
-                'type' => 'timestamp',
+                'type' => 'int',
+                'length' => 11,
                 'null' => false,
+                'default' => 0,
                 'comment' => 'Unix timestamp when session expires'
             ],
             'timecreated' => [
-                'type' => 'timestamp',
-                'null' => false
+                'type' => 'int',
+                'length' => 11,
+                'null' => false,
+                'default' => 0
             ],
             'timemodified' => [
-                'type' => 'timestamp',
-                'null' => false
+                'type' => 'int',
+                'length' => 11,
+                'null' => false,
+                'default' => 0
             ]
         ],
         'indexes' => [

@@ -25,86 +25,115 @@ class ModuleInstaller
     public function installModule(string $moduleName): bool
     {
         try {
+            error_log("ModuleInstaller: Starting installation for module '{$moduleName}'");
+
+            // Check if module tables are already installed
+            if ($this->isModuleInstalled($moduleName)) {
+                error_log("ModuleInstaller: Module '{$moduleName}' already installed");
+                return true; // Already installed
+            }
+
             $schemaPath = $this->getModuleSchemaPath($moduleName);
+            error_log("ModuleInstaller: Schema path for '{$moduleName}': {$schemaPath}");
 
             if (!file_exists($schemaPath)) {
+                error_log("ModuleInstaller: No database schema file found for '{$moduleName}' at {$schemaPath}");
                 // No database schema file found - that's okay, not all modules need databases
+                // Still set version to mark module as "installed"
+                $version = $this->getModuleVersion($moduleName);
+                if ($version) {
+                    $this->database->set_plugin_version($moduleName, $version);
+                    error_log("ModuleInstaller: Set version '{$version}' for module '{$moduleName}' (no database needed)");
+                }
                 return true;
             }
 
             $schemas = $this->loadSchemaFile($schemaPath);
+            error_log("ModuleInstaller: Loaded " . count($schemas) . " table schemas for '{$moduleName}'");
 
-            foreach ($schemas as $tableName => $schema) {
-                $this->schemaBuilder->createTable($tableName, $schema);
+            if (empty($schemas)) {
+                error_log("ModuleInstaller: No table schemas found in {$schemaPath}");
+                // Set version even if no schemas
+                $version = $this->getModuleVersion($moduleName);
+                if ($version) {
+                    $this->database->set_plugin_version($moduleName, $version);
+                }
+                return true;
             }
 
-            // Update module version in config_plugins if schema was installed
+            foreach ($schemas as $tableName => $schema) {
+                error_log("ModuleInstaller: Processing table '{$tableName}' for module '{$moduleName}'");
+
+                if (!$this->schemaBuilder->tableExists($tableName)) {
+                    error_log("ModuleInstaller: Creating table '{$tableName}'");
+                    $this->schemaBuilder->createTable($tableName, $schema);
+                    error_log("ModuleInstaller: Created table '{$tableName}' for module '{$moduleName}'");
+                } else {
+                    error_log("ModuleInstaller: Table '{$tableName}' already exists");
+                }
+            }
+
+            // Set module version in config_plugins after successful installation
             $version = $this->getModuleVersion($moduleName);
             if ($version) {
                 $this->database->set_plugin_version($moduleName, $version);
+                error_log("ModuleInstaller: Set version '{$version}' for module '{$moduleName}'");
+            } else {
+                error_log("ModuleInstaller: Warning - No version found for module '{$moduleName}'");
             }
 
+            error_log("ModuleInstaller: Successfully completed installation for module '{$moduleName}'");
             return true;
         } catch (\Exception $e) {
-            throw new DatabaseException("Failed to install module '{$moduleName}': " . $e->getMessage());
+            error_log("ModuleInstaller: Failed to install module '{$moduleName}': " . $e->getMessage());
+            error_log("ModuleInstaller: Stack trace: " . $e->getTraceAsString());
+            return false;
         }
     }
 
     /**
-     * Upgrade module database schema
+     * Check if a module's database is already installed
      */
-    public function upgradeModule(string $moduleName, string $fromVersion, string $toVersion): bool
+    private function isModuleInstalled(string $moduleName): bool
     {
-        try {
-            // First run the base install to create/update tables
-            $this->installModule($moduleName);
-
-            // Then run any upgrade scripts
-            $upgradePath = $this->getModuleUpgradePath($moduleName);
-            if (file_exists($upgradePath)) {
-                $this->runUpgradeScript($moduleName, $upgradePath, $fromVersion, $toVersion);
-            }
-
-            // Update version
-            $this->database->set_plugin_version($moduleName, $toVersion);
-
-            return true;
-        } catch (\Exception $e) {
-            throw new DatabaseException("Failed to upgrade module '{$moduleName}': " . $e->getMessage());
-        }
+        return $this->database->get_plugin_version($moduleName) !== null;
     }
 
     /**
-     * Uninstall module (drop its tables)
+     * Get the path to a module's database schema file
      */
-    public function uninstallModule(string $moduleName): bool
+    private function getModuleSchemaPath(string $moduleName): string
     {
-        try {
-            $schemaPath = $this->getModuleSchemaPath($moduleName);
-
-            if (!file_exists($schemaPath)) {
-                return true; // No schema file, nothing to uninstall
-            }
-
-            $schemas = $this->loadSchemaFile($schemaPath);
-
-            // Drop tables in reverse order to handle dependencies
-            $tableNames = array_reverse(array_keys($schemas));
-            foreach ($tableNames as $tableName) {
-                $this->schemaBuilder->dropTable($tableName);
-            }
-
-            // Remove module configuration
-            $this->database->unset_plugin_configs($moduleName);
-
-            return true;
-        } catch (\Exception $e) {
-            throw new DatabaseException("Failed to uninstall module '{$moduleName}': " . $e->getMessage());
-        }
+        $moduleManager = ModuleManager::getInstance();
+        $modulePath = $moduleManager->getModulePath($moduleName);
+        return $modulePath . '/db/install.php';
     }
 
     /**
-     * Install all modules that need database updates
+     * Load schema definitions from a module's install.php file
+     */
+    private function loadSchemaFile(string $schemaPath): array
+    {
+        if (!file_exists($schemaPath)) {
+            return [];
+        }
+
+        $schemas = include $schemaPath;
+        return is_array($schemas) ? $schemas : [];
+    }
+
+    /**
+     * Get module version from its version.php file
+     */
+    private function getModuleVersion(string $moduleName): ?string
+    {
+        $moduleManager = ModuleManager::getInstance();
+        $moduleInfo = $moduleManager->getModuleInfo($moduleName);
+        return $moduleInfo['version'] ?? null;
+    }
+
+    /**
+     * Install all discovered modules
      */
     public function installAllModules(): array
     {
@@ -112,54 +141,15 @@ class ModuleInstaller
         $moduleManager = ModuleManager::getInstance();
         $modules = $moduleManager->getAllModules();
 
-        // Check if any modules need upgrades
-        $upgradesNeeded = false;
         foreach ($modules as $moduleName => $moduleInfo) {
-            $currentVersion = $this->database->get_plugin_version($moduleName);
-            $moduleVersion = $moduleInfo['version'] ?? null;
-
-            if ((!$currentVersion && $moduleVersion) ||
-                ($currentVersion && $moduleVersion && version_compare($moduleVersion, $currentVersion, '>'))) {
-                $upgradesNeeded = true;
-                break;
-            }
-        }
-
-        // Enable maintenance mode if upgrades are needed
-        $maintenanceMode = null;
-        if ($upgradesNeeded) {
-            $maintenanceMode = new \DevFramework\Core\Maintenance\MaintenanceMode();
-            $maintenanceMode->enable('Database upgrades in progress', 300); // 5 minutes estimated
-        }
-
-        try {
-            foreach ($modules as $moduleName => $moduleInfo) {
-                try {
-                    $currentVersion = $this->database->get_plugin_version($moduleName);
-                    $moduleVersion = $moduleInfo['version'] ?? null;
-
-                    if (!$currentVersion && $moduleVersion) {
-                        // New module - install it and add version to config_plugins
-                        $this->installModule($moduleName);
-                        $this->ensureModuleVersionTracked($moduleName, $moduleInfo);
-                        $results[$moduleName] = "Installed version {$moduleVersion}";
-                    } elseif ($currentVersion && $moduleVersion && version_compare($moduleVersion, $currentVersion, '>')) {
-                        // Module needs upgrade
-                        $this->upgradeModule($moduleName, $currentVersion, $moduleVersion);
-                        $results[$moduleName] = "Upgraded from {$currentVersion} to {$moduleVersion}";
-                    } else {
-                        // Module is up to date, but ensure it's tracked in config_plugins
-                        $this->ensureModuleVersionTracked($moduleName, $moduleInfo);
-                        $results[$moduleName] = "Up to date";
-                    }
-                } catch (\Exception $e) {
-                    $results[$moduleName] = "Error: " . $e->getMessage();
+            try {
+                if ($this->installModule($moduleName)) {
+                    $results[$moduleName] = 'Installed successfully';
+                } else {
+                    $results[$moduleName] = 'Installation failed';
                 }
-            }
-        } finally {
-            // Always disable maintenance mode when done
-            if ($maintenanceMode) {
-                $maintenanceMode->disable();
+            } catch (\Exception $e) {
+                $results[$moduleName] = 'Error: ' . $e->getMessage();
             }
         }
 
@@ -167,91 +157,86 @@ class ModuleInstaller
     }
 
     /**
-     * Ensure module version is tracked in config_plugins table
+     * Upgrade a module from one version to another
      */
-    private function ensureModuleVersionTracked(string $moduleName, array $moduleInfo): void
+    public function upgradeModule(string $moduleName, string $fromVersion, string $toVersion): bool
     {
-        $moduleVersion = $moduleInfo['version'] ?? null;
+        try {
+            $upgradePath = $this->getModuleUpgradePath($moduleName);
 
-        if (!$moduleVersion) {
-            return; // No version to track
-        }
+            if (!file_exists($upgradePath)) {
+                // No upgrade file - just update the version
+                $this->database->set_plugin_version($moduleName, $toVersion);
+                return true;
+            }
 
-        // Check if version is already tracked
-        $currentVersion = $this->database->get_plugin_version($moduleName);
+            // Load and execute upgrade scripts
+            $upgradeScripts = include $upgradePath;
+            if (is_array($upgradeScripts)) {
+                foreach ($upgradeScripts as $version => $scripts) {
+                    if (version_compare($version, $fromVersion, '>') &&
+                        version_compare($version, $toVersion, '<=')) {
+                        $this->executeUpgradeScripts($scripts);
+                    }
+                }
+            }
 
-        if (!$currentVersion) {
-            // Add version tracking for this module
-            $currentTime = time();
-            $this->database->insert_record('config_plugins', [
-                'plugin' => $moduleName,
-                'name' => 'version',
-                'value' => $moduleVersion,
-                'timecreated' => $currentTime,
-                'timemodified' => $currentTime
-            ]);
+            // Update version
+            $this->database->set_plugin_version($moduleName, $toVersion);
+            return true;
+        } catch (\Exception $e) {
+            error_log("ModuleInstaller: Failed to upgrade module '{$moduleName}': " . $e->getMessage());
+            return false;
         }
     }
 
     /**
-     * Get module schema file path
-     */
-    private function getModuleSchemaPath(string $moduleName): string
-    {
-        return app_path("src/modules/{$moduleName}/db/install.php");
-    }
-
-    /**
-     * Get module upgrade script path
+     * Get the path to a module's upgrade file
      */
     private function getModuleUpgradePath(string $moduleName): string
     {
-        return app_path("src/modules/{$moduleName}/db/upgrade.php");
-    }
-
-    /**
-     * Load schema definition from file
-     */
-    private function loadSchemaFile(string $schemaPath): array
-    {
-        if (!file_exists($schemaPath)) {
-            throw new \InvalidArgumentException("Schema file not found: {$schemaPath}");
-        }
-
-        // Load the schema file
-        $schemas = include $schemaPath;
-
-        if (!is_array($schemas)) {
-            throw new \InvalidArgumentException("Schema file must return an array of table definitions");
-        }
-
-        return $schemas;
-    }
-
-    /**
-     * Get module version from its info file
-     */
-    private function getModuleVersion(string $moduleName): ?string
-    {
         $moduleManager = ModuleManager::getInstance();
-        $moduleInfo = $moduleManager->getModule($moduleName);
-
-        return $moduleInfo['version'] ?? null;
+        $modulePath = $moduleManager->getModulePath($moduleName);
+        return $modulePath . '/db/upgrade.php';
     }
 
     /**
-     * Run module upgrade script
+     * Execute upgrade scripts
      */
-    private function runUpgradeScript(string $moduleName, string $upgradePath, string $fromVersion, string $toVersion): void
+    private function executeUpgradeScripts(array $scripts): void
     {
-        if (!file_exists($upgradePath)) {
-            return;
+        foreach ($scripts as $script) {
+            if (is_string($script)) {
+                // Raw SQL
+                $this->database->execute($script);
+            } elseif (is_callable($script)) {
+                // Callable function
+                $script($this->database, $this->schemaBuilder);
+            }
         }
+    }
 
-        // Include the upgrade script with available variables
-        $DB = $this->database;
-        $schemaBuilder = $this->schemaBuilder;
+    /**
+     * Uninstall a module's database components
+     */
+    public function uninstallModule(string $moduleName): bool
+    {
+        try {
+            // Remove all tables for this module
+            $schemaPath = $this->getModuleSchemaPath($moduleName);
+            if (file_exists($schemaPath)) {
+                $schemas = $this->loadSchemaFile($schemaPath);
+                foreach (array_keys($schemas) as $tableName) {
+                    $this->schemaBuilder->dropTable($tableName);
+                }
+            }
 
-        include $upgradePath;
+            // Remove version record
+            $this->database->unset_plugin_configs($moduleName);
+            return true;
+        } catch (\Exception $e) {
+            error_log("ModuleInstaller: Failed to uninstall module '{$moduleName}': " . $e->getMessage());
+            return false;
+        }
     }
 }

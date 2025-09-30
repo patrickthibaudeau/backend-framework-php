@@ -67,10 +67,17 @@ class SchemaBuilder
      */
     public function tableExists(string $tableName): bool
     {
-        return $this->database->record_exists('information_schema.tables', [
-            'table_schema' => $this->database->getDatabaseName(),
-            'table_name' => $this->database->addPrefix($tableName)
-        ]);
+        try {
+            $prefixedTable = $this->database->addPrefix($tableName);
+            $connection = $this->database->getConnection();
+
+            // Use SHOW TABLES which is more reliable than information_schema
+            $stmt = $connection->prepare("SHOW TABLES LIKE ?");
+            $stmt->execute([$prefixedTable]);
+            return $stmt->fetchColumn() !== false;
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     /**

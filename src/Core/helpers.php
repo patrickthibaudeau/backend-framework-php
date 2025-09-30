@@ -202,27 +202,32 @@ if (!function_exists('ensure_framework_initialized')) {
             // Step 4: Initialize module system
             ModuleHelper::initialize();
 
-            // Step 5: Ensure all modules are tracked
+            // Step 5: Install module database schemas BEFORE tracking versions
+            $moduleInstaller = new \DevFramework\Core\Database\ModuleInstaller();
             $moduleManager = \DevFramework\Core\Module\ModuleManager::getInstance();
             $moduleManager->discoverModules();
             $modules = $moduleManager->getAllModules();
 
             foreach ($modules as $moduleName => $moduleInfo) {
-                $moduleVersion = $moduleInfo['version'] ?? null;
-                if ($moduleVersion) {
-                    $currentVersion = db()->get_plugin_version($moduleName);
-                    if (!$currentVersion) {
-                        db()->set_plugin_version($moduleName, $moduleVersion);
-                    }
+                // Install the module's database schema first
+                if (!$moduleInstaller->installModule($moduleName)) {
+                    error_log("Framework initialization: Failed to install database for module '{$moduleName}'");
+                    // Continue with other modules even if one fails
                 }
             }
 
             // Step 6: Auto-upgrade modules if enabled
             if (env('AUTO_UPGRADE_MODULES', false)) {
                 try {
-                    $results = install_all_module_databases();
+                    $results = $moduleInstaller->installAllModules();
+                    foreach ($results as $module => $result) {
+                        if (strpos($result, 'Error') !== false) {
+                            error_log("Module upgrade issue: {$module} - {$result}");
+                        }
+                    }
                 } catch (Exception $e) {
                     // Non-critical, continue
+                    error_log("Module auto-upgrade failed: " . $e->getMessage());
                 }
             }
 
