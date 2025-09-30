@@ -204,6 +204,18 @@ if (!function_exists('ensure_framework_initialized')) {
                     error_log("Framework: Core tables installed successfully");
                 }
 
+                // Install authentication tables if needed
+                $authInstaller = new \DevFramework\Core\Auth\AuthInstaller();
+                if (!$authInstaller->isInstalled()) {
+                    error_log("Framework: Installing authentication tables...");
+                    if (!$authInstaller->install()) {
+                        error_log("Framework: Authentication table installation failed");
+                        $coreInitialized = false;
+                        return false;
+                    }
+                    error_log("Framework: Authentication tables installed successfully");
+                }
+
                 // Initialize module system
                 ModuleHelper::initialize();
                 error_log("Framework: Module system initialized");
@@ -335,12 +347,10 @@ if (!function_exists('ensure_framework_initialized_safe')) {
                         id int(10) NOT NULL AUTO_INCREMENT,
                         name varchar(255) NOT NULL DEFAULT '',
                         value longtext,
-                        plugin varchar(100) DEFAULT NULL,
                         timemodified int(10) DEFAULT NULL,
                         timecreated int(10) DEFAULT NULL,
                         PRIMARY KEY (id),
-                        UNIQUE KEY name_plugin (name, plugin),
-                        KEY plugin (plugin)
+                        UNIQUE KEY name (name)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
                     $pdo->exec($sql);
                     error_log("Framework: Core config table created");
@@ -349,16 +359,16 @@ if (!function_exists('ensure_framework_initialized_safe')) {
                 // Create plugins config table
                 if (!$pluginsTableExists) {
                     $sql = "CREATE TABLE `$pluginsTable` (
-                        id int(10) NOT NULL AUTO_INCREMENT,
+                        id int(11) NOT NULL AUTO_INCREMENT,
                         plugin varchar(100) NOT NULL DEFAULT '',
-                        name varchar(255) NOT NULL DEFAULT '',
+                        name varchar(100) NOT NULL DEFAULT '',
                         value longtext,
-                        timemodified int(10) DEFAULT NULL,
-                        timecreated int(10) DEFAULT NULL,
+                        timecreated int(11) NOT NULL DEFAULT 0,
+                        timemodified int(11) NOT NULL DEFAULT 0,
                         PRIMARY KEY (id),
                         UNIQUE KEY plugin_name (plugin, name),
                         KEY plugin (plugin)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
                     $pdo->exec($sql);
                     error_log("Framework: Plugins config table created");
                 }
@@ -366,6 +376,21 @@ if (!function_exists('ensure_framework_initialized_safe')) {
 
             // Step 4: Initialize database connection through framework (now that core tables exist)
             DatabaseFactory::createGlobal();
+
+            // Step 4.5: Install authentication tables if needed
+            try {
+                $authInstaller = new \DevFramework\Core\Auth\AuthInstaller();
+                if (!$authInstaller->isInstalled()) {
+                    error_log("Framework: Installing authentication tables...");
+                    if ($authInstaller->install()) {
+                        error_log("Framework: Authentication tables installed successfully");
+                    } else {
+                        error_log("Framework: Authentication table installation failed");
+                    }
+                }
+            } catch (Exception $e) {
+                error_log("Framework: Authentication installation error: " . $e->getMessage());
+            }
 
             // Step 5: Module installation and upgrade detection
             $modulesDir = dirname(__DIR__, 2) . '/src/modules';
@@ -967,3 +992,9 @@ if (!function_exists('get_core_installation_status')) {
         return $installer->getInstallationStatus();
     }
 }
+
+// Load authentication helpers
+require_once __DIR__ . '/Auth/helpers.php';
+
+// Initialize global database instance
+$DB = DatabaseFactory::initialize();
