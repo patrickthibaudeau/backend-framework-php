@@ -20,7 +20,7 @@ class ModuleHelper
     /**
      * Get a language string from a module
      */
-    public static function lang(string $moduleName, string $key, array $params = [], string $language = null): string
+    public static function lang(string $moduleName, string $key, array $params = [], ?string $language = null): string
     {
         $languageManager = LanguageManager::getInstance();
         return $languageManager->formatString($moduleName, $key, $params, $language);
