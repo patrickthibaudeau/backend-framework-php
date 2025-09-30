@@ -335,3 +335,19 @@ if (!function_exists('modules_path')) {
         return $path ? $modulesPath . DIRECTORY_SEPARATOR . ltrim($path, DIRECTORY_SEPARATOR) : $modulesPath;
     }
 }
+
+if (!function_exists('get_string')) {
+    /**
+     * Get a language string from a module (global helper)
+     *
+     * @param string $moduleName The module containing the language strings
+     * @param string $key The language key to retrieve
+     * @param array $params Array of parameters for string interpolation
+     * @param string|null $language Optional specific language code (uses default if null)
+     * @return string
+     */
+    function get_string(string $moduleName, string $key, array $params = [], ?string $language = null): string
+    {
+        return ModuleHelper::get_string($moduleName, $key, $params, $language);
+    }
+}
