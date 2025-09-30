@@ -17,6 +17,13 @@ require_once __DIR__ . '/../vendor/autoload.php';
 // Load framework helpers
 require_once __DIR__ . '/../src/Core/helpers.php';
 
+// Check for maintenance mode (before any other processing)
+$maintenanceMode = new \DevFramework\Core\Maintenance\MaintenanceMode();
+if ($maintenanceMode->isEnabled() && !$maintenanceMode->isAllowed()) {
+    $maintenanceMode->displayMaintenancePage();
+    // Script will exit here if in maintenance mode
+}
+
 // Simple routing for demonstration
 $requestUri = $_SERVER['REQUEST_URI'];
 $requestMethod = $_SERVER['REQUEST_METHOD'];
@@ -36,6 +43,10 @@ switch ($path) {
 
     case '/health':
         handleHealth();
+        break;
+
+    case '/install-status':
+        handleInstallStatus();
         break;
 
     case '/phpinfo':
@@ -66,6 +77,7 @@ function handleHome()
             '/' => 'Home - this page',
             '/config' => 'Configuration information',
             '/health' => 'Health check',
+            '/install-status' => 'Installation status of core tables',
             '/phpinfo' => 'PHP information (debug mode only)'
         ]
     ]);
@@ -141,4 +153,28 @@ function handleHealth()
     }
 
     echo json_encode($status);
+}
+
+function handleInstallStatus()
+{
+    header('Content-Type: application/json');
+
+    try {
+        // Get the actual core installation status
+        $status = get_core_installation_status();
+
+        echo json_encode([
+            'status' => $status['all_core_installed'] ? 'complete' : 'incomplete',
+            'message' => $status['all_core_installed'] ? 'All core tables are installed' : 'Some core tables are missing',
+            'tables' => $status,
+            'timestamp' => date('c')
+        ]);
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode([
+            'error' => 'Installation status check failed',
+            'message' => $e->getMessage(),
+            'timestamp' => date('c')
+        ]);
+    }
 }

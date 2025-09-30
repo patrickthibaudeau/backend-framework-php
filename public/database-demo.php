@@ -78,27 +78,77 @@ header('Content-Type: text/html; charset=utf-8');
             echo '</div>';
 
             if ($databaseConnected) {
-                // Create demo table
+                // Create demo table using framework's schema system
                 echo '<div class="demo-section">';
                 echo '<h2>2. Table Setup</h2>';
 
-                $DB->execute("
-                    CREATE TABLE IF NOT EXISTS demo_posts (
-                        id INT PRIMARY KEY AUTO_INCREMENT,
-                        title VARCHAR(200) NOT NULL,
-                        content TEXT,
-                        author VARCHAR(50) NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        published BOOLEAN DEFAULT FALSE,
-                        views INT DEFAULT 0
-                    )
-                ");
-                echo '<div class="success">✅ Demo table "demo_posts" created/verified</div>';
+                // Define the demo_posts table schema
+                $demoTableSchema = [
+                    'fields' => [
+                        'id' => [
+                            'type' => 'int',
+                            'length' => 11,
+                            'auto_increment' => true,
+                            'primary' => true,
+                            'null' => false,
+                            'comment' => 'Unique post ID'
+                        ],
+                        'title' => [
+                            'type' => 'varchar',
+                            'length' => 200,
+                            'null' => false,
+                            'comment' => 'Post title'
+                        ],
+                        'content' => [
+                            'type' => 'text',
+                            'null' => true,
+                            'comment' => 'Post content'
+                        ],
+                        'author' => [
+                            'type' => 'varchar',
+                            'length' => 50,
+                            'null' => false,
+                            'comment' => 'Post author'
+                        ],
+                        'timecreated' => [
+                            'type' => 'timestamp',
+                            'null' => false,
+                            'comment' => 'Unix timestamp when created'
+                        ],
+                        'published' => [
+                            'type' => 'boolean',
+                            'default' => false,
+                            'null' => false,
+                            'comment' => 'Whether post is published'
+                        ],
+                        'views' => [
+                            'type' => 'int',
+                            'default' => 0,
+                            'null' => false,
+                            'comment' => 'Number of views'
+                        ]
+                    ],
+                    'indexes' => [
+                        'author' => 'author',
+                        'published' => 'published',
+                        'timecreated' => 'timecreated'
+                    ]
+                ];
+
+                // Create the table using the framework's schema builder
+                try {
+                    create_table_from_schema('demo_posts', $demoTableSchema);
+                    echo '<div class="success">✅ Demo table "dev_demo_posts" created/verified using framework schema system</div>';
+                } catch (Exception $e) {
+                    echo '<div class="error">❌ Failed to create demo table: ' . htmlspecialchars($e->getMessage()) . '</div>';
+                }
                 echo '</div>';
 
                 // Clear existing demo data first
                 try {
-                    $DB->execute("DELETE FROM demo_posts WHERE author IN ('John Developer', 'Jane Coder', 'Bob Programmer')");
+                    $DB->delete_records('demo_posts', ['author' => 'John Developer']);
+                    $DB->delete_records('demo_posts', ['author' => 'Jane Coder']);
+                    $DB->delete_records('demo_posts', ['author' => 'Bob Programmer']);
                 } catch (Exception $e) {
                     // Ignore errors if table doesn't exist yet
                 }
@@ -112,28 +162,35 @@ header('Content-Type: text/html; charset=utf-8');
                         'title' => 'Welcome to DevFramework',
                         'content' => 'This is our first blog post about the amazing DevFramework!',
                         'author' => 'John Developer',
-                        'published' => 1, // Use 1 instead of true for MySQL BOOLEAN
-                        'views' => 42
+                        'published' => true,
+                        'views' => 42,
+                        'timecreated' => time()
                     ],
                     [
                         'title' => 'Database Integration Guide',
                         'content' => 'Learn how to use the Moodle-compatible database functions.',
                         'author' => 'Jane Coder',
-                        'published' => 1, // Use 1 instead of true for MySQL BOOLEAN
-                        'views' => 156
+                        'published' => true,
+                        'views' => 156,
+                        'timecreated' => time()
                     ],
                     [
                         'title' => 'Advanced PHP Features',
                         'content' => 'Exploring PHP 8.4 features in our framework.',
                         'author' => 'Bob Programmer',
-                        'published' => 0, // Use 0 instead of false for MySQL BOOLEAN
-                        'views' => 23
+                        'published' => false,
+                        'views' => 23,
+                        'timecreated' => time()
                     ]
                 ];
 
                 foreach ($posts as $post) {
-                    $id = $DB->insert_record('demo_posts', $post);
-                    echo "<div class='info'>Inserted post: \"{$post['title']}\" with ID: {$id}</div>";
+                    try {
+                        $id = $DB->insert_record('demo_posts', $post);
+                        echo "<div class='info'>✅ Inserted post: \"{$post['title']}\" with ID: {$id}</div>";
+                    } catch (Exception $e) {
+                        echo "<div class='error'>❌ Failed to insert post \"{$post['title']}\": " . htmlspecialchars($e->getMessage()) . "</div>";
+                    }
                 }
                 echo '</div>';
 
@@ -141,22 +198,23 @@ header('Content-Type: text/html; charset=utf-8');
                 echo '<div class="demo-section">';
                 echo '<h2>4. Data Retrieval ($DB->get_records)</h2>';
 
-                $allPosts = $DB->get_records('demo_posts', [], 'created_at DESC');
+                $allPosts = $DB->get_records('demo_posts', [], 'timecreated DESC');
 
-                echo '<div class="code">$allPosts = $DB->get_records("demo_posts", [], "created_at DESC");</div>';
+                echo '<div class="code">$allPosts = $DB->get_records("demo_posts", [], "timecreated DESC");</div>';
                 echo "<div class='success'>Retrieved " . count($allPosts) . " posts</div>";
 
                 echo '<table>';
                 echo '<tr><th>ID</th><th>Title</th><th>Author</th><th>Published</th><th>Views</th><th>Created</th></tr>';
                 foreach ($allPosts as $post) {
                     $published = $post->published ? 'Yes' : 'No';
+                    $createdDate = date('Y-m-d H:i:s', $post->timecreated);
                     echo "<tr>";
                     echo "<td>{$post->id}</td>";
                     echo "<td>{$post->title}</td>";
                     echo "<td>{$post->author}</td>";
                     echo "<td>{$published}</td>";
                     echo "<td>{$post->views}</td>";
-                    echo "<td>{$post->created_at}</td>";
+                    echo "<td>{$createdDate}</td>";
                     echo "</tr>";
                 }
                 echo '</table>';

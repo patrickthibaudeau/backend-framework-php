@@ -39,6 +39,17 @@ class Database
     }
 
     /**
+     * Get the raw PDO connection
+     */
+    public function getConnection(): ?PDO
+    {
+        if ($this->connection === null) {
+            $this->connect();
+        }
+        return $this->connection;
+    }
+
+    /**
      * Initialize database connection
      */
     public function connect(): void
@@ -441,14 +452,6 @@ class Database
     }
 
     /**
-     * Add table prefix
-     */
-    private function addPrefix(string $table): string
-    {
-        return $this->tablePrefix . $table;
-    }
-
-    /**
      * Build DSN string
      */
     private function buildDsn(): string
@@ -573,5 +576,22 @@ class Database
     public function unset_plugin_configs(string $plugin): bool
     {
         return $this->delete_records('config_plugins', ['plugin' => $plugin]);
+    }
+
+    /**
+     * Get the database name from config
+     */
+    public function getDatabaseName(): string
+    {
+        $config = Configuration::getInstance();
+        return $config->get('database.connections.mysql.database', '');
+    }
+
+    /**
+     * Add table prefix (make public for SchemaBuilder)
+     */
+    public function addPrefix(string $table): string
+    {
+        return $this->tablePrefix . $table;
     }
 }

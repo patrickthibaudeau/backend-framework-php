@@ -9,12 +9,7 @@ use DevFramework\Core\Module\LanguageManager;
 // Load module constants
 require_once __DIR__ . '/Module/constants.php';
 
-// Initialize global database connection
-DatabaseFactory::createGlobal();
-
-// Initialize module system
-ModuleHelper::initialize();
-
+// Define helper functions first before using them
 if (!function_exists('config')) {
     /**
      * Get configuration value using dot notation
@@ -104,36 +99,6 @@ if (!function_exists('storage_path')) {
     }
 }
 
-if (!function_exists('public_path')) {
-    /**
-     * Get public path
-     *
-     * @param string $path Additional path to append
-     * @return string
-     */
-    function public_path(string $path = ''): string
-    {
-        $publicPath = app_path('public');
-        return $path ? $publicPath . DIRECTORY_SEPARATOR . ltrim($path, DIRECTORY_SEPARATOR) : $publicPath;
-    }
-}
-
-if (!function_exists('dd')) {
-    /**
-     * Dump and die - useful for debugging
-     *
-     * @param mixed ...$vars Variables to dump
-     * @return never
-     */
-    function dd(mixed ...$vars): never
-    {
-        foreach ($vars as $var) {
-            var_dump($var);
-        }
-        die(1);
-    }
-}
-
 if (!function_exists('logger')) {
     /**
      * Simple logging function
@@ -174,6 +139,151 @@ if (!function_exists('db')) {
 
         return $DB;
     }
+}
+
+if (!function_exists('is_framework_initialized')) {
+    /**
+     * Check if the framework is fully initialized
+     *
+     * @return bool
+     */
+    function is_framework_initialized(): bool
+    {
+        // Check if we have a database connection and core tables
+        try {
+            $db = db();
+            $db->connect();
+
+            // Check if core tables exist
+            $coreInstaller = new \DevFramework\Core\Database\CoreInstaller();
+            return $coreInstaller->areCoreTablesInstalled();
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+}
+
+if (!function_exists('ensure_framework_initialized')) {
+    /**
+     * Ensure the framework is fully initialized
+     * This function MUST be called at the start of every entry point
+     *
+     * @return bool
+     */
+    function ensure_framework_initialized(): bool
+    {
+        static $initialized = null;
+
+        // Return cached result if already checked
+        if ($initialized !== null) {
+            return $initialized;
+        }
+
+        try {
+            // Step 1: Ensure database exists FIRST before anything else
+            $dbInitializer = new \DevFramework\Core\Database\DatabaseInitializer();
+            if (!$dbInitializer->ensureDatabaseExists()) {
+                $initialized = false;
+                return false;
+            }
+
+            // Step 2: Now that database exists, initialize global database connection
+            DatabaseFactory::createGlobal();
+
+            // Step 3: Install core tables if needed
+            $coreInstaller = new \DevFramework\Core\Database\CoreInstaller();
+            if (!$coreInstaller->areCoreTablesInstalled()) {
+                if (!$coreInstaller->installCoreTablesIfNeeded()) {
+                    $initialized = false;
+                    return false;
+                }
+            }
+
+            // Step 4: Initialize module system
+            ModuleHelper::initialize();
+
+            // Step 5: Ensure all modules are tracked
+            $moduleManager = \DevFramework\Core\Module\ModuleManager::getInstance();
+            $moduleManager->discoverModules();
+            $modules = $moduleManager->getAllModules();
+
+            foreach ($modules as $moduleName => $moduleInfo) {
+                $moduleVersion = $moduleInfo['version'] ?? null;
+                if ($moduleVersion) {
+                    $currentVersion = db()->get_plugin_version($moduleName);
+                    if (!$currentVersion) {
+                        db()->set_plugin_version($moduleName, $moduleVersion);
+                    }
+                }
+            }
+
+            // Step 6: Auto-upgrade modules if enabled
+            if (env('AUTO_UPGRADE_MODULES', false)) {
+                try {
+                    $results = install_all_module_databases();
+                } catch (Exception $e) {
+                    // Non-critical, continue
+                }
+            }
+
+            $initialized = true;
+            return true;
+
+        } catch (Exception $e) {
+            error_log("Framework initialization failed: " . $e->getMessage());
+            $initialized = false;
+            return false;
+        }
+    }
+}
+
+// BOOTSTRAP: Ensure framework is initialized on every request
+// This is the critical piece that ensures database setup works across all entry points
+$initResult = ensure_framework_initialized();
+
+// If initialization failed and this is not a CLI request, show maintenance page
+if (!$initResult && php_sapi_name() !== 'cli') {
+    http_response_code(503);
+    header('Content-Type: text/html; charset=utf-8');
+
+    $maintenanceHtml = '<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Maintenance</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #e74c3c; margin-bottom: 20px; }
+        p { color: #666; line-height: 1.6; }
+        .details { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: left; }
+        .retry { margin-top: 20px; }
+        .retry a { background: #3498db; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }
+        .retry a:hover { background: #2980b9; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 System Maintenance</h1>
+        <p>The system is currently being set up or updated. This usually takes just a few moments.</p>
+        <div class="details">
+            <strong>What\'s happening:</strong><br>
+            • Creating database if needed<br>
+            • Installing core tables<br>
+            • Setting up modules<br>
+            • Configuring system components
+        </div>
+        <p>If this message persists, please check the application logs or contact your system administrator.</p>
+        <div class="retry">
+            <a href="javascript:window.location.reload()">Try Again</a>
+        </div>
+    </div>
+</body>
+</html>';
+
+    echo $maintenanceHtml;
+    exit;
 }
 
 if (!function_exists('db_get_record')) {
@@ -280,7 +390,7 @@ if (!function_exists('module_lang')) {
      */
     function module_lang(string $moduleName, string $key, array $params = [], ?string $language = null): string
     {
-        return ModuleHelper::lang($moduleName, $key, $params, $language);
+        return ModuleHelper::get_string($moduleName, $key, $params, $language);
     }
 }
 
@@ -446,5 +556,157 @@ if (!function_exists('unset_plugin_configs')) {
     function unset_plugin_configs(string $plugin): bool
     {
         return db()->unset_plugin_configs($plugin);
+    }
+}
+
+if (!function_exists('install_module_database')) {
+    /**
+     * Install database schema for a module
+     *
+     * @param string $moduleName Module name
+     * @return bool
+     */
+    function install_module_database(string $moduleName): bool
+    {
+        $installer = new \DevFramework\Core\Database\ModuleInstaller();
+        return $installer->installModule($moduleName);
+    }
+}
+
+if (!function_exists('upgrade_module_database')) {
+    /**
+     * Upgrade database schema for a module
+     *
+     * @param string $moduleName Module name
+     * @param string $fromVersion Current version
+     * @param string $toVersion Target version
+     * @return bool
+     */
+    function upgrade_module_database(string $moduleName, string $fromVersion, string $toVersion): bool
+    {
+        $installer = new \DevFramework\Core\Database\ModuleInstaller();
+        return $installer->upgradeModule($moduleName, $fromVersion, $toVersion);
+    }
+}
+
+if (!function_exists('uninstall_module_database')) {
+    /**
+     * Uninstall database schema for a module
+     *
+     * @param string $moduleName Module name
+     * @return bool
+     */
+    function uninstall_module_database(string $moduleName): bool
+    {
+        $installer = new \DevFramework\Core\Database\ModuleInstaller();
+        return $installer->uninstallModule($moduleName);
+    }
+}
+
+if (!function_exists('install_all_module_databases')) {
+    /**
+     * Install/upgrade database schemas for all modules
+     *
+     * @return array Results array with module names and status
+     */
+    function install_all_module_databases(): array
+    {
+        $installer = new \DevFramework\Core\Database\ModuleInstaller();
+        return $installer->installAllModules();
+    }
+}
+
+if (!function_exists('create_table_from_schema')) {
+    /**
+     * Create a table from schema definition
+     *
+     * @param string $tableName Table name
+     * @param array $schema Table schema definition
+     * @return bool
+     */
+    function create_table_from_schema(string $tableName, array $schema): bool
+    {
+        $builder = new \DevFramework\Core\Database\SchemaBuilder();
+        return $builder->createTable($tableName, $schema);
+    }
+}
+
+if (!function_exists('enable_maintenance_mode')) {
+    /**
+     * Enable maintenance mode
+     *
+     * @param string $reason Reason for maintenance
+     * @param int|null $duration Estimated duration in seconds
+     * @return bool
+     */
+    function enable_maintenance_mode(string $reason = 'System maintenance', ?int $duration = null): bool
+    {
+        $maintenance = new \DevFramework\Core\Maintenance\MaintenanceMode();
+        return $maintenance->enable($reason, $duration);
+    }
+}
+
+if (!function_exists('disable_maintenance_mode')) {
+    /**
+     * Disable maintenance mode
+     *
+     * @return bool
+     */
+    function disable_maintenance_mode(): bool
+    {
+        $maintenance = new \DevFramework\Core\Maintenance\MaintenanceMode();
+        return $maintenance->disable();
+    }
+}
+
+if (!function_exists('is_maintenance_mode')) {
+    /**
+     * Check if maintenance mode is enabled
+     *
+     * @return bool
+     */
+    function is_maintenance_mode(): bool
+    {
+        $maintenance = new \DevFramework\Core\Maintenance\MaintenanceMode();
+        return $maintenance->isEnabled();
+    }
+}
+
+if (!function_exists('get_maintenance_info')) {
+    /**
+     * Get maintenance mode information
+     *
+     * @return array|null
+     */
+    function get_maintenance_info(): ?array
+    {
+        $maintenance = new \DevFramework\Core\Maintenance\MaintenanceMode();
+        return $maintenance->getInfo();
+    }
+}
+
+if (!function_exists('install_core_tables')) {
+    /**
+     * Install core framework tables (config_plugins and user tables)
+     *
+     * @return bool
+     */
+    function install_core_tables(): bool
+    {
+        $installer = new \DevFramework\Core\Database\CoreInstaller();
+        return $installer->installCoreTablesIfNeeded();
+    }
+}
+
+if (!function_exists('get_core_installation_status')) {
+    /**
+     * Get the status of core table installation
+     *
+     * @return array
+     */
+    function get_core_installation_status(): array
+    {
+        $installer = new \DevFramework\Core\Database\CoreInstaller();
+        return $installer->getInstallationStatus();
     }
 }
