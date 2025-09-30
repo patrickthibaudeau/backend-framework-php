@@ -162,30 +162,53 @@ class ModuleInstaller
     public function upgradeModule(string $moduleName, string $fromVersion, string $toVersion): bool
     {
         try {
+            error_log("ModuleInstaller: Starting upgrade for module '{$moduleName}' from {$fromVersion} to {$toVersion}");
+
             $upgradePath = $this->getModuleUpgradePath($moduleName);
+            error_log("ModuleInstaller: Upgrade path for '{$moduleName}': {$upgradePath}");
 
             if (!file_exists($upgradePath)) {
-                // No upgrade file - just update the version
-                $this->database->set_plugin_version($moduleName, $toVersion);
-                return true;
-            }
-
-            // Load and execute upgrade scripts
-            $upgradeScripts = include $upgradePath;
-            if (is_array($upgradeScripts)) {
-                foreach ($upgradeScripts as $version => $scripts) {
-                    if (version_compare($version, $fromVersion, '>') &&
-                        version_compare($version, $toVersion, '<=')) {
-                        $this->executeUpgradeScripts($scripts);
-                    }
+                // No upgrade file - just update the version (this is normal and OK)
+                error_log("ModuleInstaller: No upgrade file found for '{$moduleName}', updating version only");
+                $result = $this->database->set_plugin_version($moduleName, $toVersion);
+                if ($result) {
+                    error_log("ModuleInstaller: Successfully updated version for '{$moduleName}' to {$toVersion}");
+                    return true;
+                } else {
+                    error_log("ModuleInstaller: Failed to update version for '{$moduleName}' to {$toVersion}");
+                    return false;
                 }
             }
 
+            error_log("ModuleInstaller: Loading upgrade scripts from {$upgradePath}");
+            // Load and execute upgrade scripts
+            $upgradeScripts = include $upgradePath;
+            if (is_array($upgradeScripts)) {
+                error_log("ModuleInstaller: Found " . count($upgradeScripts) . " upgrade script sections");
+                foreach ($upgradeScripts as $version => $scripts) {
+                    if (version_compare($version, $fromVersion, '>') &&
+                        version_compare($version, $toVersion, '<=')) {
+                        error_log("ModuleInstaller: Executing upgrade scripts for version {$version}");
+                        $this->executeUpgradeScripts($scripts);
+                    }
+                }
+            } else {
+                error_log("ModuleInstaller: Upgrade file did not return an array for '{$moduleName}'");
+            }
+
             // Update version
-            $this->database->set_plugin_version($moduleName, $toVersion);
-            return true;
+            error_log("ModuleInstaller: Updating version for '{$moduleName}' to {$toVersion}");
+            $result = $this->database->set_plugin_version($moduleName, $toVersion);
+            if ($result) {
+                error_log("ModuleInstaller: Successfully completed upgrade for '{$moduleName}' to {$toVersion}");
+                return true;
+            } else {
+                error_log("ModuleInstaller: Failed to update version for '{$moduleName}' after upgrade");
+                return false;
+            }
         } catch (\Exception $e) {
             error_log("ModuleInstaller: Failed to upgrade module '{$moduleName}': " . $e->getMessage());
+            error_log("ModuleInstaller: Stack trace: " . $e->getTraceAsString());
             return false;
         }
     }
