@@ -288,20 +288,34 @@ if (!function_exists('ensure_framework_initialized_safe')) {
         }
 
         try {
-            // Step 1: Basic database connectivity check using direct PDO (no framework dependencies)
+            // Step 1: Ensure database exists using DatabaseInitializer
+            try {
+                $dbInitializer = new \DevFramework\Core\Database\DatabaseInitializer();
+                if (!$dbInitializer->ensureDatabaseExists()) {
+                    error_log("Framework: Database creation failed");
+                    $initializationResult = false;
+                    return false;
+                }
+                error_log("Framework: Database exists and is accessible");
+            } catch (Exception $e) {
+                error_log("Framework: Database initialization error: " . $e->getMessage());
+                $initializationResult = false;
+                return false;
+            }
+
+            // Step 2: Basic database connectivity check using direct PDO
             $host = $_ENV['DB_HOST'] ?? 'mysql';
             $database = $_ENV['DB_DATABASE'] ?? 'devframework';
             $username = $_ENV['DB_USERNAME'] ?? 'devframework';
             $password = $_ENV['DB_PASSWORD'] ?? 'devframework';
             $prefix = $_ENV['DB_PREFIX'] ?? 'dev_';
 
-            // Test basic database connection without using framework classes
             $pdo = new PDO("mysql:host={$host};dbname={$database}", $username, $password, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
             ]);
 
-            // Step 2: Check if core tables exist using direct SQL
+            // Step 3: Check and create core tables if needed
             $coreTable = $prefix . 'config';
             $pluginsTable = $prefix . 'config_plugins';
 
@@ -313,18 +327,50 @@ if (!function_exists('ensure_framework_initialized_safe')) {
             $pluginsTableExists = $stmt->fetchColumn() !== false;
 
             if (!$coreTableExists || !$pluginsTableExists) {
-                error_log("Framework: Core tables missing, framework not properly initialized");
-                $initializationResult = false;
-                return false;
+                error_log("Framework: Core tables missing, creating them...");
+
+                // Create core config table
+                if (!$coreTableExists) {
+                    $sql = "CREATE TABLE `$coreTable` (
+                        id int(10) NOT NULL AUTO_INCREMENT,
+                        name varchar(255) NOT NULL DEFAULT '',
+                        value longtext,
+                        plugin varchar(100) DEFAULT NULL,
+                        timemodified int(10) DEFAULT NULL,
+                        timecreated int(10) DEFAULT NULL,
+                        PRIMARY KEY (id),
+                        UNIQUE KEY name_plugin (name, plugin),
+                        KEY plugin (plugin)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+                    $pdo->exec($sql);
+                    error_log("Framework: Core config table created");
+                }
+
+                // Create plugins config table
+                if (!$pluginsTableExists) {
+                    $sql = "CREATE TABLE `$pluginsTable` (
+                        id int(10) NOT NULL AUTO_INCREMENT,
+                        plugin varchar(100) NOT NULL DEFAULT '',
+                        name varchar(255) NOT NULL DEFAULT '',
+                        value longtext,
+                        timemodified int(10) DEFAULT NULL,
+                        timecreated int(10) DEFAULT NULL,
+                        PRIMARY KEY (id),
+                        UNIQUE KEY plugin_name (plugin, name),
+                        KEY plugin (plugin)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+                    $pdo->exec($sql);
+                    error_log("Framework: Plugins config table created");
+                }
             }
 
-            // Step 3: Initialize database connection through framework (now that we know tables exist)
+            // Step 4: Initialize database connection through framework (now that core tables exist)
             DatabaseFactory::createGlobal();
 
-            // Step 4: Module upgrade detection and processing (the key functionality)
+            // Step 5: Module installation and upgrade detection
             $modulesDir = dirname(__DIR__, 2) . '/src/modules';
             if (!is_dir($modulesDir)) {
-                error_log("Framework: Modules directory not found, skipping module upgrades");
+                error_log("Framework: Modules directory not found, skipping module setup");
                 $initializationResult = true;
                 return true;
             }
@@ -336,7 +382,7 @@ if (!function_exists('ensure_framework_initialized_safe')) {
             if (!defined('MATURITY_STABLE')) define('MATURITY_STABLE', 'MATURITY_STABLE');
 
             $modules = array_filter(glob($modulesDir . '/*'), 'is_dir');
-            $upgradePerformed = false;
+            $installationPerformed = false;
 
             foreach ($modules as $moduleDir) {
                 $moduleName = basename($moduleDir);
@@ -356,7 +402,7 @@ if (!function_exists('ensure_framework_initialized_safe')) {
                         continue;
                     }
 
-                    // Check database version using direct SQL to avoid framework dependencies
+                    // Check database version using direct SQL
                     $stmt = $pdo->prepare("SELECT value FROM `$pluginsTable` WHERE plugin = ? AND name = 'version'");
                     $stmt->execute([$moduleName]);
                     $dbVersion = $stmt->fetchColumn();
@@ -364,27 +410,51 @@ if (!function_exists('ensure_framework_initialized_safe')) {
                     if (!$dbVersion) {
                         // Module not installed - install it
                         error_log("Framework: Installing module '{$moduleName}' version {$fileVersion}");
-                        $stmt = $pdo->prepare("INSERT INTO `$pluginsTable` (plugin, name, value, timemodified, timecreated) VALUES (?, 'version', ?, ?, ?)");
-                        $time = time();
-                        $stmt->execute([$moduleName, $fileVersion, $time, $time]);
-                        $upgradePerformed = true;
 
-                        // Run install script if it exists
+                        // Install module tables using schema if install.php exists
                         $installFile = $moduleDir . '/db/install.php';
                         if (file_exists($installFile)) {
                             try {
-                                include $installFile;
-                                error_log("Framework: Module '{$moduleName}' install script executed");
+                                error_log("Framework: Installing database schema for module '{$moduleName}'");
+
+                                // Get schema definition from install.php
+                                $schema = include $installFile;
+
+                                if (is_array($schema) && !empty($schema)) {
+                                    // Use SchemaBuilder to create tables
+                                    $schemaBuilder = new \DevFramework\Core\Database\SchemaBuilder();
+
+                                    foreach ($schema as $tableName => $tableDefinition) {
+                                        try {
+                                            $schemaBuilder->createTable($tableName, $tableDefinition);
+                                            error_log("Framework: Created table '{$tableName}' for module '{$moduleName}'");
+                                        } catch (Exception $e) {
+                                            error_log("Framework: Failed to create table '{$tableName}' for module '{$moduleName}': " . $e->getMessage());
+                                        }
+                                    }
+                                    error_log("Framework: Module '{$moduleName}' schema installation completed");
+                                } else {
+                                    error_log("Framework: Module '{$moduleName}' install.php did not return a valid schema array");
+                                }
                             } catch (Exception $e) {
-                                error_log("Framework: Module '{$moduleName}' install script failed: " . $e->getMessage());
+                                error_log("Framework: Module '{$moduleName}' install failed: " . $e->getMessage());
                             }
+                        } else {
+                            error_log("Framework: Module '{$moduleName}' has no install.php file");
                         }
+
+                        // Set module version in database AFTER successful table creation
+                        $stmt = $pdo->prepare("INSERT INTO `$pluginsTable` (plugin, name, value, timemodified, timecreated) VALUES (?, 'version', ?, ?, ?)");
+                        $time = time();
+                        $stmt->execute([$moduleName, $fileVersion, $time, $time]);
+                        error_log("Framework: Module '{$moduleName}' version {$fileVersion} recorded in database");
+
+                        $installationPerformed = true;
                     } else if (version_compare($fileVersion, $dbVersion, '>')) {
                         // Module needs upgrade
                         error_log("Framework: Upgrading module '{$moduleName}' from {$dbVersion} to {$fileVersion}");
                         $stmt = $pdo->prepare("UPDATE `$pluginsTable` SET value = ?, timemodified = ? WHERE plugin = ? AND name = 'version'");
                         $stmt->execute([$fileVersion, time(), $moduleName]);
-                        $upgradePerformed = true;
 
                         // Run upgrade script if it exists
                         $upgradeFile = $moduleDir . '/db/upgrade.php';
@@ -401,14 +471,15 @@ if (!function_exists('ensure_framework_initialized_safe')) {
                                 error_log("Framework: Module '{$moduleName}' upgrade script failed: " . $e->getMessage());
                             }
                         }
+                        $installationPerformed = true;
                     }
                 } catch (Exception $e) {
                     error_log("Framework: Error processing module '{$moduleName}': " . $e->getMessage());
                 }
             }
 
-            if ($upgradePerformed) {
-                error_log("Framework: Module upgrades completed successfully");
+            if ($installationPerformed) {
+                error_log("Framework: Module installations/upgrades completed successfully");
             }
 
             $initializationResult = true;

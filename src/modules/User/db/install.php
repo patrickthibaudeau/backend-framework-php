@@ -19,6 +19,12 @@ return [
                 'null' => false,
                 'comment' => 'Unique user ID'
             ],
+            'auth' => [
+                'type' => 'varchar',
+                'length' => 100,
+                'null' => false,
+                'comment' => 'Authentication type (e.g., manaul, ldap, oauth, saml2)'
+            ],
             'username' => [
                 'type' => 'varchar',
                 'length' => 100,
@@ -31,21 +37,21 @@ return [
                 'null' => false,
                 'comment' => 'User email address'
             ],
-            'password_hash' => [
+            'password' => [
                 'type' => 'varchar',
                 'length' => 255,
                 'null' => false,
                 'comment' => 'Hashed password'
             ],
-            'first_name' => [
+            'firstname' => [
                 'type' => 'varchar',
-                'length' => 100,
+                'length' => 255,
                 'null' => true,
                 'comment' => 'User first name'
             ],
-            'last_name' => [
+            'lastname' => [
                 'type' => 'varchar',
-                'length' => 100,
+                'length' => 255,
                 'null' => true,
                 'comment' => 'User last name'
             ],
@@ -56,13 +62,13 @@ return [
                 'null' => false,
                 'comment' => 'User status: active, inactive, suspended'
             ],
-            'email_verified' => [
+            'emailverified' => [
                 'type' => 'boolean',
                 'default' => 0,
                 'null' => false,
                 'comment' => 'Whether email is verified'
             ],
-            'last_login' => [
+            'lastlogin' => [
                 'type' => 'int',
                 'length' => 11,
                 'null' => true,
@@ -106,7 +112,7 @@ return [
                 'primary' => true,
                 'null' => false
             ],
-            'user_id' => [
+            'userid' => [
                 'type' => 'int',
                 'length' => 11,
                 'null' => false,
@@ -117,7 +123,7 @@ return [
                 'null' => true,
                 'comment' => 'User biography'
             ],
-            'avatar_url' => [
+            'avatarurl' => [
                 'type' => 'varchar',
                 'length' => 500,
                 'null' => true,
@@ -128,6 +134,12 @@ return [
                 'length' => 20,
                 'null' => true,
                 'comment' => 'User phone number'
+            ],
+            'mobile' => [
+                'type' => 'varchar',
+                'length' => 20,
+                'null' => true,
+                'comment' => 'User mobile phone number'
             ],
             'timezone' => [
                 'type' => 'varchar',
@@ -162,12 +174,12 @@ return [
             ]
         ],
         'indexes' => [
-            'user_id' => 'user_id',
+            'userid' => 'userid',
             'timezone' => 'timezone',
             'language' => 'language'
         ],
         'unique' => [
-            'user_id' => 'user_id'
+            'userid' => 'userid'
         ]
     ],
 
@@ -181,7 +193,7 @@ return [
                 'null' => false,
                 'comment' => 'Session ID'
             ],
-            'user_id' => [
+            'userid' => [
                 'type' => 'int',
                 'length' => 11,
                 'null' => true,
@@ -224,7 +236,7 @@ return [
             ]
         ],
         'indexes' => [
-            'user_id' => 'user_id',
+            'userid' => 'userid',
             'expires_at' => 'expires_at',
             'ip_address' => 'ip_address'
         ]
