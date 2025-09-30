@@ -6,6 +6,9 @@ use DevFramework\Core\Module\ModuleHelper;
 use DevFramework\Core\Module\ModuleManager;
 use DevFramework\Core\Module\LanguageManager;
 
+// Load module constants
+require_once __DIR__ . '/Module/constants.php';
+
 // Initialize global database connection
 DatabaseFactory::createGlobal();
 

@@ -7,4 +7,4 @@ $PLUGIN = new stdClass();
 $PLUGIN->version = '1.0.0';
 $PLUGIN->release = '1.0.0';
 $PLUGIN->component = 'User';
-$PLUGIN->maturity = 'MATURITY_STABLE';
+$PLUGIN->maturity = MATURITY_STABLE;

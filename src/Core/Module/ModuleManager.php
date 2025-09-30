@@ -53,6 +53,11 @@ class ModuleManager
      */
     private function loadModuleInfo(string $moduleName, string $versionFile): void
     {
+        // Ensure constants are loaded before including version file
+        if (!defined('MATURITY_STABLE')) {
+            require_once dirname(__DIR__) . '/Module/constants.php';
+        }
+
         // Create a clean scope for loading the version file
         $PLUGIN = new \stdClass();
 

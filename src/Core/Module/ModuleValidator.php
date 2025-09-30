@@ -15,7 +15,7 @@ class ModuleValidator
     public static function validateModule(string $modulePath): bool
     {
         $moduleName = basename($modulePath);
-        
+
         // Check if module directory exists
         if (!is_dir($modulePath)) {
             throw new ModuleException("Module directory does not exist: {$modulePath}");
@@ -52,10 +52,10 @@ class ModuleValidator
     {
         // Create isolated scope for version file
         $PLUGIN = new \stdClass();
-        
+
         // Include the version file
         include $versionFile;
-        
+
         // Check required properties
         $requiredProperties = ['version', 'release', 'component', 'maturity'];
         foreach ($requiredProperties as $property) {
@@ -69,8 +69,8 @@ class ModuleValidator
             throw new ModuleException("Module {$moduleName} version format should follow semantic versioning (x.y.z)");
         }
 
-        // Validate maturity values
-        $validMaturity = ['MATURITY_ALPHA', 'MATURITY_BETA', 'MATURITY_RC', 'MATURITY_STABLE'];
+        // Validate maturity values using constants
+        $validMaturity = [MATURITY_ALPHA, MATURITY_BETA, MATURITY_RC, MATURITY_STABLE];
         if (!in_array($PLUGIN->maturity, $validMaturity)) {
             throw new ModuleException("Module {$moduleName} maturity must be one of: " . implode(', ', $validMaturity));
         }
@@ -82,7 +82,7 @@ class ModuleValidator
     public static function createModuleSkeleton(string $modulesPath, string $moduleName, array $moduleInfo = []): void
     {
         $modulePath = $modulesPath . '/' . $moduleName;
-        
+
         // Create module directory
         if (!is_dir($modulePath)) {
             mkdir($modulePath, 0755, true);
@@ -114,7 +114,7 @@ class ModuleValidator
             $versionContent .= "\$PLUGIN->version = '{$version}';\n";
             $versionContent .= "\$PLUGIN->release = '{$release}';\n";
             $versionContent .= "\$PLUGIN->component = '{$component}';\n";
-            $versionContent .= "\$PLUGIN->maturity = '{$maturity}';\n";
+            $versionContent .= "\$PLUGIN->maturity = {$maturity};\n";
 
             file_put_contents($versionFile, $versionContent);
         }
