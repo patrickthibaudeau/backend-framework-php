@@ -2,9 +2,15 @@
 
 use DevFramework\Core\Config\Configuration;
 use DevFramework\Core\Database\DatabaseFactory;
+use DevFramework\Core\Module\ModuleHelper;
+use DevFramework\Core\Module\ModuleManager;
+use DevFramework\Core\Module\LanguageManager;
 
 // Initialize global database connection
 DatabaseFactory::createGlobal();
+
+// Initialize module system
+ModuleHelper::initialize();
 
 if (!function_exists('config')) {
     /**
@@ -256,5 +262,73 @@ if (!function_exists('db_count_records')) {
     function db_count_records(string $table, array $conditions = []): int
     {
         return db()->count_records($table, $conditions);
+    }
+}
+
+if (!function_exists('module_lang')) {
+    /**
+     * Get a language string from a module
+     *
+     * @param string $moduleName Module name
+     * @param string $key Language string key
+     * @param array $params Parameters for string formatting
+     * @param string|null $language Language code (defaults to current language)
+     * @return string
+     */
+    function module_lang(string $moduleName, string $key, array $params = [], ?string $language = null): string
+    {
+        return ModuleHelper::lang($moduleName, $key, $params, $language);
+    }
+}
+
+if (!function_exists('is_module_loaded')) {
+    /**
+     * Check if a module is loaded
+     *
+     * @param string $moduleName Module name
+     * @return bool
+     */
+    function is_module_loaded(string $moduleName): bool
+    {
+        return ModuleHelper::isModuleAvailable($moduleName);
+    }
+}
+
+if (!function_exists('get_module_info')) {
+    /**
+     * Get module information
+     *
+     * @param string $moduleName Module name
+     * @return array|null
+     */
+    function get_module_info(string $moduleName): ?array
+    {
+        return ModuleHelper::getModuleInfo($moduleName);
+    }
+}
+
+if (!function_exists('list_modules')) {
+    /**
+     * List all available modules
+     *
+     * @return array
+     */
+    function list_modules(): array
+    {
+        return ModuleHelper::listModules();
+    }
+}
+
+if (!function_exists('modules_path')) {
+    /**
+     * Get modules path
+     *
+     * @param string $path Additional path to append
+     * @return string
+     */
+    function modules_path(string $path = ''): string
+    {
+        $modulesPath = app_path('modules');
+        return $path ? $modulesPath . DIRECTORY_SEPARATOR . ltrim($path, DIRECTORY_SEPARATOR) : $modulesPath;
     }
 }
