@@ -487,4 +487,91 @@ class Database
         $this->connect();
         return $this->connection;
     }
+
+    /**
+     * Get plugin configuration value
+     */
+    public function get_config(string $plugin, string $name, mixed $default = null): mixed
+    {
+        $record = $this->get_record('config_plugins', ['plugin' => $plugin, 'name' => $name]);
+        return $record ? $record->value : $default;
+    }
+
+    /**
+     * Set plugin configuration value
+     */
+    public function set_config(string $plugin, string $name, mixed $value): bool
+    {
+        // Convert value to string for storage
+        $valueStr = is_string($value) ? $value : json_encode($value);
+        $currentTime = time();
+
+        // Check if config already exists
+        if ($this->record_exists('config_plugins', ['plugin' => $plugin, 'name' => $name])) {
+            // Update existing config
+            $record = $this->get_record('config_plugins', ['plugin' => $plugin, 'name' => $name]);
+            return $this->update_record('config_plugins', [
+                'id' => $record->id,
+                'value' => $valueStr,
+                'timemodified' => $currentTime
+            ]);
+        } else {
+            // Insert new config
+            $result = $this->insert_record('config_plugins', [
+                'plugin' => $plugin,
+                'name' => $name,
+                'value' => $valueStr,
+                'timecreated' => $currentTime,
+                'timemodified' => $currentTime
+            ]);
+            return $result !== false;
+        }
+    }
+
+    /**
+     * Get plugin version
+     */
+    public function get_plugin_version(string $plugin): ?string
+    {
+        return $this->get_config($plugin, 'version');
+    }
+
+    /**
+     * Set plugin version
+     */
+    public function set_plugin_version(string $plugin, string $version): bool
+    {
+        return $this->set_config($plugin, 'version', $version);
+    }
+
+    /**
+     * Get all configurations for a plugin
+     */
+    public function get_plugin_configs(string $plugin): array
+    {
+        $records = $this->get_records('config_plugins', ['plugin' => $plugin]);
+        $configs = [];
+
+        foreach ($records as $record) {
+            $configs[$record->name] = $record->value;
+        }
+
+        return $configs;
+    }
+
+    /**
+     * Delete plugin configuration
+     */
+    public function unset_config(string $plugin, string $name): bool
+    {
+        return $this->delete_records('config_plugins', ['plugin' => $plugin, 'name' => $name]);
+    }
+
+    /**
+     * Delete all configurations for a plugin
+     */
+    public function unset_plugin_configs(string $plugin): bool
+    {
+        return $this->delete_records('config_plugins', ['plugin' => $plugin]);
+    }
 }

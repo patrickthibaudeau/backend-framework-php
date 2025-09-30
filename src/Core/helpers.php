@@ -351,3 +351,100 @@ if (!function_exists('get_string')) {
         return ModuleHelper::get_string($moduleName, $key, $params, $language);
     }
 }
+
+if (!function_exists('get_config')) {
+    /**
+     * Get plugin configuration value
+     *
+     * @param string $plugin Plugin name
+     * @param string $name Configuration name
+     * @param mixed $default Default value if not found
+     * @return mixed
+     */
+    function get_config(string $plugin, string $name, mixed $default = null): mixed
+    {
+        return db()->get_config($plugin, $name, $default);
+    }
+}
+
+if (!function_exists('set_config')) {
+    /**
+     * Set plugin configuration value
+     *
+     * @param string $plugin Plugin name
+     * @param string $name Configuration name
+     * @param mixed $value Configuration value
+     * @return bool
+     */
+    function set_config(string $plugin, string $name, mixed $value): bool
+    {
+        return db()->set_config($plugin, $name, $value);
+    }
+}
+
+if (!function_exists('get_plugin_version')) {
+    /**
+     * Get plugin version
+     *
+     * @param string $plugin Plugin name
+     * @return string|null
+     */
+    function get_plugin_version(string $plugin): ?string
+    {
+        return db()->get_plugin_version($plugin);
+    }
+}
+
+if (!function_exists('set_plugin_version')) {
+    /**
+     * Set plugin version
+     *
+     * @param string $plugin Plugin name
+     * @param string $version Version string
+     * @return bool
+     */
+    function set_plugin_version(string $plugin, string $version): bool
+    {
+        return db()->set_plugin_version($plugin, $version);
+    }
+}
+
+if (!function_exists('get_plugin_configs')) {
+    /**
+     * Get all configurations for a plugin
+     *
+     * @param string $plugin Plugin name
+     * @return array
+     */
+    function get_plugin_configs(string $plugin): array
+    {
+        return db()->get_plugin_configs($plugin);
+    }
+}
+
+if (!function_exists('unset_config')) {
+    /**
+     * Delete plugin configuration
+     *
+     * @param string $plugin Plugin name
+     * @param string $name Configuration name
+     * @return bool
+     */
+    function unset_config(string $plugin, string $name): bool
+    {
+        return db()->unset_config($plugin, $name);
+    }
+}
+
+if (!function_exists('unset_plugin_configs')) {
+    /**
+     * Delete all configurations for a plugin
+     *
+     * @param string $plugin Plugin name
+     * @return bool
+     */
+    function unset_plugin_configs(string $plugin): bool
+    {
+        return db()->unset_plugin_configs($plugin);
+    }
+}
