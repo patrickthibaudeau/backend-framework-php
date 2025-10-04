@@ -51,12 +51,79 @@ class CoreInstaller
             // Include the install script
             include $schemaFile;
 
-            error_log('CoreInstaller: Core tables installed successfully');
+            // Set initial version for core component in config_plugins table
+            $pluginsTable = $this->database->addPrefix('config_plugins');
+            $stmt = $pdo->prepare("INSERT INTO `{$pluginsTable}` (plugin, name, value, timemodified, timecreated) VALUES (?, 'version', ?, ?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value), timemodified = VALUES(timemodified)");
+            $time = time();
+            $stmt->execute(['core', '1', $time, $time]);
+
+            error_log('CoreInstaller: Core tables installed successfully and core version set to 1');
+
+            // Now check if we need to run upgrades to get to the latest version
+            $this->checkAndRunUpgrades($pdo, $prefix);
+
             return true;
 
         } catch (\Exception $e) {
             error_log('CoreInstaller: Failed to install core tables: ' . $e->getMessage());
             return false;
+        }
+    }
+
+    /**
+     * Check and run upgrades for the Core component
+     */
+    private function checkAndRunUpgrades($pdo, $prefix): void
+    {
+        try {
+            // Get current version from config_plugins
+            $pluginsTable = $this->database->addPrefix('config_plugins');
+            $stmt = $pdo->prepare("SELECT value FROM `{$pluginsTable}` WHERE plugin = ? AND name = 'version'");
+            $stmt->execute(['core']);
+            $currentVersion = $stmt->fetchColumn();
+
+            // Load Core version file to get target version (if it exists)
+            $coreVersionFile = __DIR__ . '/../version.php';
+            $targetVersion = '1'; // Default fallback
+
+            if (file_exists($coreVersionFile)) {
+                $PLUGIN = new stdClass();
+                include $coreVersionFile;
+                $targetVersion = $PLUGIN->version ?? '1';
+            }
+
+            error_log("CoreInstaller: Core version check after install - current: {$currentVersion}, target: {$targetVersion}");
+
+            // Check if we need to upgrade
+            if (version_compare($currentVersion, $targetVersion, '<')) {
+                error_log("CoreInstaller: Core upgrade needed from {$currentVersion} to {$targetVersion}");
+
+                // Run upgrade script if it exists
+                $upgradeFile = __DIR__ . '/../db/upgrade.php';
+                if (file_exists($upgradeFile)) {
+                    // Provide variables that upgrade script expects
+                    $from_version = $currentVersion;
+                    $to_version = $targetVersion;
+
+                    include $upgradeFile;
+
+                    // Update version after successful upgrade
+                    $stmt = $pdo->prepare("UPDATE `{$pluginsTable}` SET value = ?, timemodified = ? WHERE plugin = ? AND name = 'version'");
+                    $stmt->execute([$targetVersion, time(), 'core']);
+
+                    error_log("CoreInstaller: Core upgrade completed successfully to version {$targetVersion}");
+                } else {
+                    // No upgrade script, just update version
+                    $stmt = $pdo->prepare("UPDATE `{$pluginsTable}` SET value = ?, timemodified = ? WHERE plugin = ? AND name = 'version'");
+                    $stmt->execute([$targetVersion, time(), 'core']);
+                    error_log("CoreInstaller: Core version updated to {$targetVersion} (no upgrade script)");
+                }
+            } else {
+                error_log("CoreInstaller: Core is already at target version {$currentVersion}");
+            }
+
+        } catch (\Exception $e) {
+            error_log("CoreInstaller: Core upgrade check error: " . $e->getMessage());
         }
     }
 

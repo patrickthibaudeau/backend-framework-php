@@ -50,12 +50,73 @@ class AuthInstaller
             $stmt->execute(['core_auth', '1', $time, $time]);
 
             error_log("Framework: Auth tables installed successfully and core_auth version set to 1");
+
+            // Now check if we need to run upgrades to get to the latest version
+            $this->checkAndRunUpgrades($pdo, $prefix);
+
             return true;
 
         } catch (Exception $e) {
             error_log("Auth installation failed: " . $e->getMessage());
             error_log("Stack trace: " . $e->getTraceAsString());
             return false;
+        }
+    }
+
+    /**
+     * Check and run upgrades for the Auth component
+     */
+    private function checkAndRunUpgrades($pdo, $prefix): void
+    {
+        try {
+            // Get current version from config_plugins
+            $pluginsTable = $this->db->addPrefix('config_plugins');
+            $stmt = $pdo->prepare("SELECT value FROM `{$pluginsTable}` WHERE plugin = ? AND name = 'version'");
+            $stmt->execute(['core_auth']);
+            $currentVersion = $stmt->fetchColumn();
+
+            // Load Auth version file to get target version
+            $authVersionFile = __DIR__ . '/version.php';
+            $targetVersion = '1'; // Default fallback
+
+            if (file_exists($authVersionFile)) {
+                $PLUGIN = new stdClass();
+                include $authVersionFile;
+                $targetVersion = $PLUGIN->version ?? '1';
+            }
+
+            error_log("Framework: Auth version check after install - current: {$currentVersion}, target: {$targetVersion}");
+
+            // Check if we need to upgrade
+            if (version_compare($currentVersion, $targetVersion, '<')) {
+                error_log("Framework: Auth upgrade needed from {$currentVersion} to {$targetVersion}");
+
+                // Run upgrade script if it exists
+                $upgradeFile = __DIR__ . '/db/upgrade.php';
+                if (file_exists($upgradeFile)) {
+                    // Provide variables that upgrade script expects
+                    $from_version = $currentVersion;
+                    $to_version = $targetVersion;
+
+                    include $upgradeFile;
+
+                    // Update version after successful upgrade
+                    $stmt = $pdo->prepare("UPDATE `{$pluginsTable}` SET value = ?, timemodified = ? WHERE plugin = ? AND name = 'version'");
+                    $stmt->execute([$targetVersion, time(), 'core_auth']);
+
+                    error_log("Framework: Auth upgrade completed successfully to version {$targetVersion}");
+                } else {
+                    // No upgrade script, just update version
+                    $stmt = $pdo->prepare("UPDATE `{$pluginsTable}` SET value = ?, timemodified = ? WHERE plugin = ? AND name = 'version'");
+                    $stmt->execute([$targetVersion, time(), 'core_auth']);
+                    error_log("Framework: Auth version updated to {$targetVersion} (no upgrade script)");
+                }
+            } else {
+                error_log("Framework: Auth is already at target version {$currentVersion}");
+            }
+
+        } catch (Exception $e) {
+            error_log("Framework: Auth upgrade check error: " . $e->getMessage());
         }
     }
 
