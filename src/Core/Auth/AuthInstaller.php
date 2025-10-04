@@ -4,7 +4,6 @@ namespace DevFramework\Core\Auth;
 
 use DevFramework\Core\Database\Database;
 use DevFramework\Core\Database\DatabaseException;
-use DevFramework\Core\Database\SchemaLoader;
 use PDO;
 use Exception;
 
@@ -14,12 +13,10 @@ use Exception;
 class AuthInstaller
 {
     private Database $db;
-    private SchemaLoader $schemaLoader;
 
     public function __construct()
     {
         $this->db = Database::getInstance();
-        $this->schemaLoader = new SchemaLoader();
     }
 
     /**
@@ -30,184 +27,35 @@ class AuthInstaller
         try {
             error_log("Framework: AuthInstaller->install() called");
 
-            // Use SchemaLoader to install auth tables and default users
+            // Load and execute the install schema directly
             $schemaFile = __DIR__ . '/db/install.php';
-            $success = $this->schemaLoader->loadSchema($schemaFile);
-
-            if ($success) {
-                // Update schema version to 1
-                $this->schemaLoader->updateSchemaVersion('auth', 1);
-                error_log("Framework: Auth tables installed successfully via SchemaLoader");
-                return true;
-            } else {
-                error_log("Framework: Failed to install auth tables via SchemaLoader");
+            if (!file_exists($schemaFile)) {
+                error_log("Framework: Auth install.php not found");
                 return false;
             }
+
+            // Execute the install script directly
+            $pdo = $this->db->getConnection();
+
+            // Get the table prefix from environment (same as helpers.php)
+            $prefix = $_ENV['DB_PREFIX'] ?? 'dev_';
+
+            // Include the install script
+            include $schemaFile;
+
+            // Set initial version for core_auth in config_plugins table
+            $pluginsTable = $this->db->addPrefix('config_plugins');
+            $stmt = $pdo->prepare("INSERT INTO `{$pluginsTable}` (plugin, name, value, timemodified, timecreated) VALUES (?, 'version', ?, ?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value), timemodified = VALUES(timemodified)");
+            $time = time();
+            $stmt->execute(['core_auth', '1', $time, $time]);
+
+            error_log("Framework: Auth tables installed successfully and core_auth version set to 1");
+            return true;
+
         } catch (Exception $e) {
             error_log("Auth installation failed: " . $e->getMessage());
             error_log("Stack trace: " . $e->getTraceAsString());
             return false;
-        }
-    }
-
-    /**
-     * @deprecated Use SchemaLoader instead. Kept for backward compatibility.
-     * Create the users table with all required fields - matches User module schema exactly
-     */
-    private function createUsersTable(): void
-    {
-        // Get the connection to use the correct prefixed table name
-        $connection = $this->db->getConnection();
-        $prefix = $_ENV['DB_PREFIX'] ?? 'dev_';
-        $tableName = $prefix . 'users';
-
-        $sql = "
-            CREATE TABLE IF NOT EXISTS `{$tableName}` (
-                id INT(11) NOT NULL AUTO_INCREMENT COMMENT 'Unique user ID',
-                auth VARCHAR(100) NOT NULL COMMENT 'Authentication type (e.g., manual, ldap, oauth, saml2)',
-                username VARCHAR(100) NOT NULL COMMENT 'Unique username',
-                email VARCHAR(255) NOT NULL COMMENT 'User email address',
-                password VARCHAR(255) NOT NULL COMMENT 'Hashed password',
-                firstname VARCHAR(255) NULL COMMENT 'User first name',
-                lastname VARCHAR(255) NULL COMMENT 'User last name',
-                idnumber VARCHAR(255) NULL COMMENT 'An id number',
-                status VARCHAR(20) NOT NULL DEFAULT 'active' COMMENT 'User status: active, inactive, suspended',
-                emailverified BOOLEAN NOT NULL DEFAULT 0 COMMENT 'Whether email is verified',
-                lastlogin INT(11) NULL DEFAULT NULL COMMENT 'Unix timestamp of last login',
-                timecreated INT(11) NOT NULL DEFAULT 0 COMMENT 'Unix timestamp when user was created',
-                timemodified INT(11) NOT NULL DEFAULT 0 COMMENT 'Unix timestamp when user was last modified',
-                PRIMARY KEY (id),
-                INDEX username (username),
-                INDEX email (email),
-                INDEX status (status),
-                INDEX timecreated (timecreated),
-                UNIQUE KEY username_unique (username),
-                UNIQUE KEY email_unique (email)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ";
-
-        $connection->exec($sql);
-        error_log("Framework: Created table '{$tableName}'");
-    }
-
-    /**
-     * @deprecated Use SchemaLoader instead. Kept for backward compatibility.
-     * Create user sessions table - matches User module schema exactly
-     */
-    private function createUserSessionsTable(): void
-    {
-        // Get the connection to use the correct prefixed table name
-        $connection = $this->db->getConnection();
-        $prefix = $_ENV['DB_PREFIX'] ?? 'dev_';
-        $tableName = $prefix . 'user_sessions';
-
-        $sql = "
-            CREATE TABLE IF NOT EXISTS `{$tableName}` (
-                id VARCHAR(128) NOT NULL COMMENT 'Session ID',
-                userid INT(11) NULL COMMENT 'User ID (null for anonymous sessions)',
-                ip_address VARCHAR(45) NULL COMMENT 'IP address (supports IPv6)',
-                user_agent TEXT NULL COMMENT 'User agent string',
-                data LONGTEXT NULL COMMENT 'Serialized session data',
-                expires_at INT(11) NOT NULL DEFAULT 0 COMMENT 'Unix timestamp when session expires',
-                timecreated INT(11) NOT NULL DEFAULT 0,
-                timemodified INT(11) NOT NULL DEFAULT 0,
-                PRIMARY KEY (id),
-                INDEX userid (userid),
-                INDEX expires_at (expires_at),
-                INDEX ip_address (ip_address)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ";
-
-        $connection->exec($sql);
-        error_log("Framework: Created table '{$tableName}'");
-    }
-
-    /**
-     * @deprecated Use SchemaLoader instead. Kept for backward compatibility.
-     * Force insert default users - bypasses all checks
-     */
-    private function forceInsertDefaultUsers(): void
-    {
-        try {
-            error_log("Framework: Checking if users exist before force insert...");
-
-            // Use raw SQL to double-check user count with correct table name
-            $connection = $this->db->getConnection();
-            $prefix = $_ENV['DB_PREFIX'] ?? 'dev_';
-            $tableName = $prefix . 'users';
-
-            $stmt = $connection->prepare("SELECT COUNT(*) as count FROM `{$tableName}`");
-            $stmt->execute();
-            $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            $userCount = (int)$result['count'];
-
-            error_log("Framework: Current user count in '{$tableName}' (raw SQL): {$userCount}");
-
-            if ($userCount === 0) {
-                $currentTime = time();
-
-                error_log("Framework: Creating default users in '{$tableName}' (force mode)...");
-
-                // Create default admin user using raw SQL with correct table name
-                $hashedPassword = password_hash('admin123', PASSWORD_DEFAULT);
-                $adminSql = "INSERT INTO `{$tableName}` (auth, username, email, password, firstname, lastname, status, emailverified, timecreated, timemodified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-                $stmt = $connection->prepare($adminSql);
-                $stmt->execute([
-                    'manual',
-                    'admin',
-                    'admin@example.com',
-                    $hashedPassword,
-                    'System',
-                    'Administrator',
-                    'active',
-                    1,
-                    $currentTime,
-                    $currentTime
-                ]);
-                $adminId = $connection->lastInsertId();
-                error_log("Framework: Created admin user (ID: {$adminId}) in '{$tableName}' via raw SQL");
-
-                // Create test user using raw SQL with correct table name
-                $hashedPassword = password_hash('password123', PASSWORD_DEFAULT);
-                $testSql = "INSERT INTO `{$tableName}` (auth, username, email, password, firstname, lastname, status, emailverified, timecreated, timemodified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-                $stmt = $connection->prepare($testSql);
-                $stmt->execute([
-                    'manual',
-                    'testuser',
-                    'test@example.com',
-                    $hashedPassword,
-                    'Test',
-                    'User',
-                    'active',
-                    1,
-                    $currentTime,
-                    $currentTime
-                ]);
-                $testId = $connection->lastInsertId();
-                error_log("Framework: Created test user (ID: {$testId}) in '{$tableName}' via raw SQL");
-
-                // Verify users were created
-                $stmt = $connection->prepare("SELECT COUNT(*) as count FROM `{$tableName}`");
-                $stmt->execute();
-                $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                $finalCount = (int)$result['count'];
-                error_log("Framework: Final user count in '{$tableName}' after creation: {$finalCount}");
-
-                // Also verify by listing the users
-                $stmt = $connection->prepare("SELECT id, username, email FROM `{$tableName}`");
-                $stmt->execute();
-                $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                foreach ($users as $user) {
-                    error_log("Framework: User created - ID: {$user['id']}, Username: {$user['username']}, Email: {$user['email']}");
-                }
-
-                error_log("Framework: Default users created successfully in '{$tableName}'");
-            } else {
-                error_log("Framework: Users already exist in '{$tableName}' ({$userCount} found), skipping default user creation");
-            }
-        } catch (Exception $e) {
-            error_log("Framework: Error in forceInsertDefaultUsers: " . $e->getMessage());
-            error_log("Framework: Stack trace: " . $e->getTraceAsString());
         }
     }
 
@@ -274,7 +122,7 @@ class AuthInstaller
                 'users_table_exists' => $userCount >= 0,
                 'has_users' => $userCount > 0,
                 'user_count' => $userCount,
-                'schema_version' => $this->schemaLoader->getSchemaVersion('auth')
+                'schema_version' => 1 // Since we directly set it in config_plugins, we can return 1 here
             ];
         } catch (DatabaseException $e) {
             return [

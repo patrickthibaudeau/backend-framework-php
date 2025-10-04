@@ -3,21 +3,19 @@
  * Auth Database Schema - Install Script
  * Contains authentication-related tables (users, user_sessions)
  * 
- * This file is loaded by SchemaLoader and has access to:
- * - $db: Database instance
- * - $connection: PDO connection
- * - $prefix: Table prefix
- * - $getTableName($name): Helper to get prefixed table name
- * - $executeSql($sql): Helper to execute SQL
- * - $tableExists($name): Helper to check if table exists
+ * This file is loaded directly by AuthInstaller and has access to:
+ * - $pdo: PDO connection
+ * - $prefix: Table prefix (e.g., "dev_")
  */
 
 try {
     // Create users table if it doesn't exist
-    if (!$tableExists('users')) {
-        $tableName = $getTableName('users');
-        
-        $sql = "CREATE TABLE IF NOT EXISTS `{$tableName}` (
+    $usersTable = $prefix . 'users';
+    $stmt = $pdo->query("SHOW TABLES LIKE '{$usersTable}'");
+    $usersTableExists = $stmt->fetchColumn() !== false;
+
+    if (!$usersTableExists) {
+        $sql = "CREATE TABLE `{$usersTable}` (
             id INT(11) NOT NULL AUTO_INCREMENT COMMENT 'Unique user ID',
             auth VARCHAR(100) NOT NULL COMMENT 'Authentication type (e.g., manual, ldap, oauth, saml2)',
             username VARCHAR(100) NOT NULL COMMENT 'Unique username',
@@ -40,15 +38,17 @@ try {
             UNIQUE KEY email_unique (email)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
         
-        $executeSql($sql);
+        $pdo->exec($sql);
         error_log("Auth Schema: Created users table");
     }
     
     // Create user_sessions table if it doesn't exist
-    if (!$tableExists('user_sessions')) {
-        $tableName = $getTableName('user_sessions');
-        
-        $sql = "CREATE TABLE IF NOT EXISTS `{$tableName}` (
+    $sessionsTable = $prefix . 'user_sessions';
+    $stmt = $pdo->query("SHOW TABLES LIKE '{$sessionsTable}'");
+    $sessionsTableExists = $stmt->fetchColumn() !== false;
+
+    if (!$sessionsTableExists) {
+        $sql = "CREATE TABLE `{$sessionsTable}` (
             id VARCHAR(128) NOT NULL COMMENT 'Session ID',
             userid INT(11) NULL COMMENT 'User ID (null for anonymous sessions)',
             ip_address VARCHAR(45) NULL COMMENT 'IP address (supports IPv6)',
@@ -63,13 +63,12 @@ try {
             INDEX ip_address (ip_address)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
         
-        $executeSql($sql);
+        $pdo->exec($sql);
         error_log("Auth Schema: Created user_sessions table");
     }
     
     // Create default users if none exist
-    $usersTableName = $getTableName('users');
-    $stmt = $connection->prepare("SELECT COUNT(*) as count FROM `{$usersTableName}`");
+    $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM `{$usersTable}`");
     $stmt->execute();
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
     $userCount = (int)$result['count'];
@@ -79,8 +78,8 @@ try {
         
         // Create default admin user
         $hashedPassword = password_hash('admin123', PASSWORD_DEFAULT);
-        $adminSql = "INSERT INTO `{$usersTableName}` (auth, username, email, password, firstname, lastname, status, emailverified, timecreated, timemodified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        $stmt = $connection->prepare($adminSql);
+        $adminSql = "INSERT INTO `{$usersTable}` (auth, username, email, password, firstname, lastname, status, emailverified, timecreated, timemodified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $stmt = $pdo->prepare($adminSql);
         $stmt->execute([
             'manual',
             'admin',
@@ -93,13 +92,13 @@ try {
             $currentTime,
             $currentTime
         ]);
-        $adminId = $connection->lastInsertId();
+        $adminId = $pdo->lastInsertId();
         error_log("Auth Schema: Created admin user (ID: {$adminId})");
         
         // Create test user
         $hashedPassword = password_hash('password123', PASSWORD_DEFAULT);
-        $testSql = "INSERT INTO `{$usersTableName}` (auth, username, email, password, firstname, lastname, status, emailverified, timecreated, timemodified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        $stmt = $connection->prepare($testSql);
+        $testSql = "INSERT INTO `{$usersTable}` (auth, username, email, password, firstname, lastname, status, emailverified, timecreated, timemodified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $stmt = $pdo->prepare($testSql);
         $stmt->execute([
             'manual',
             'testuser',
@@ -112,13 +111,13 @@ try {
             $currentTime,
             $currentTime
         ]);
-        $testId = $connection->lastInsertId();
+        $testId = $pdo->lastInsertId();
         error_log("Auth Schema: Created test user (ID: {$testId})");
         
         error_log("Auth Schema: Default users created successfully");
     }
     
-    // Mark this schema as version 1
+    error_log("Auth Schema: Installation completed successfully");
     return true;
     
 } catch (Exception $e) {

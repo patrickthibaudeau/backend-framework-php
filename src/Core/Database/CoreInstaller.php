@@ -9,12 +9,10 @@ namespace DevFramework\Core\Database;
 class CoreInstaller
 {
     private Database $database;
-    private SchemaLoader $schemaLoader;
 
     public function __construct()
     {
         $this->database = Database::getInstance();
-        $this->schemaLoader = new SchemaLoader();
     }
 
     /**
@@ -23,7 +21,7 @@ class CoreInstaller
     public function areCoreTablesInstalled(): bool
     {
         try {
-            return $this->tableExists('config_plugins');
+            return $this->tableExists('config_plugins') && $this->tableExists('config');
         } catch (\Exception $e) {
             // If we can't check, assume they're not installed
             return false;
@@ -39,19 +37,23 @@ class CoreInstaller
             // Make sure the database connection is working
             $this->database->connect();
 
-            // Use SchemaLoader to install core tables
+            // Execute the install script directly
             $schemaFile = __DIR__ . '/../db/install.php';
-            $success = $this->schemaLoader->loadSchema($schemaFile);
-
-            if ($success) {
-                // Update schema version to 1
-                $this->schemaLoader->updateSchemaVersion('core', 1);
-                error_log('CoreInstaller: Core tables installed successfully via SchemaLoader');
-                return true;
-            } else {
-                error_log('CoreInstaller: Failed to install core tables via SchemaLoader');
+            if (!file_exists($schemaFile)) {
+                error_log('CoreInstaller: Core install.php not found');
                 return false;
             }
+
+            // Get PDO connection and prefix
+            $pdo = $this->database->getConnection();
+            $prefix = $_ENV['DB_PREFIX'] ?? 'dev_';
+
+            // Include the install script
+            include $schemaFile;
+
+            error_log('CoreInstaller: Core tables installed successfully');
+            return true;
+
         } catch (\Exception $e) {
             error_log('CoreInstaller: Failed to install core tables: ' . $e->getMessage());
             return false;
@@ -88,7 +90,8 @@ class CoreInstaller
     {
         return [
             'config_plugins' => $this->tableExists('config_plugins'),
-            'schema_version' => $this->schemaLoader->getSchemaVersion('core')
+            'config' => $this->tableExists('config'),
+            'core_tables_installed' => $this->areCoreTablesInstalled()
         ];
     }
 }

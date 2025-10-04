@@ -3,13 +3,9 @@
  * Core Database Schema - Upgrade Script
  * Contains upgrade logic for core framework tables
  * 
- * This file is loaded by SchemaLoader and has access to:
- * - $db: Database instance
- * - $connection: PDO connection
- * - $prefix: Table prefix
- * - $getTableName($name): Helper to get prefixed table name
- * - $executeSql($sql): Helper to execute SQL
- * - $tableExists($name): Helper to check if table exists
+ * This file is loaded directly by the framework and has access to:
+ * - $pdo: PDO connection
+ * - $prefix: Table prefix (e.g., "dev_")
  * - $from_version: Version upgrading from
  * - $to_version: Version upgrading to
  */

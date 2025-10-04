@@ -330,7 +330,6 @@ if (!function_exists('ensure_framework_initialized_safe')) {
             // Step 3: Check and create core tables if needed
             $coreTable = $prefix . 'config';
             $pluginsTable = $prefix . 'config_plugins';
-            $schemaVersionsTable = $prefix . 'schema_versions';
 
             $stmt = $pdo->prepare("SHOW TABLES LIKE ?");
             $stmt->execute([$coreTable]);
@@ -339,10 +338,7 @@ if (!function_exists('ensure_framework_initialized_safe')) {
             $stmt->execute([$pluginsTable]);
             $pluginsTableExists = $stmt->fetchColumn() !== false;
 
-            $stmt->execute([$schemaVersionsTable]);
-            $schemaVersionsTableExists = $stmt->fetchColumn() !== false;
-
-            if (!$coreTableExists || !$pluginsTableExists || !$schemaVersionsTableExists) {
+            if (!$coreTableExists || !$pluginsTableExists) {
                 error_log("Framework: Core tables missing, creating them...");
 
                 // Create core config table
@@ -375,19 +371,6 @@ if (!function_exists('ensure_framework_initialized_safe')) {
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
                     $pdo->exec($sql);
                     error_log("Framework: Plugins config table created");
-                }
-
-                // Create schema_versions table
-                if (!$schemaVersionsTableExists) {
-                    $sql = "CREATE TABLE `$schemaVersionsTable` (
-                        component VARCHAR(100) NOT NULL COMMENT 'Component name (core, auth, etc.)',
-                        version INT(11) NOT NULL DEFAULT 0 COMMENT 'Current schema version',
-                        timecreated INT(11) NOT NULL DEFAULT 0 COMMENT 'Time created',
-                        timemodified INT(11) NOT NULL DEFAULT 0 COMMENT 'Time modified',
-                        PRIMARY KEY (component)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Schema version tracking'";
-                    $pdo->exec($sql);
-                    error_log("Framework: Schema versions table created");
                 }
             }
 
@@ -443,34 +426,60 @@ if (!function_exists('ensure_framework_initialized_safe')) {
             } else {
                 error_log("Framework: Auth tables already exist and populated");
 
-                // Check if Auth component needs upgrade using SchemaLoader approach
+                // Check if Auth component needs upgrade using config_plugins table
                 try {
-                    $schemaLoader = new \DevFramework\Core\Database\SchemaLoader();
-                    $currentAuthVersion = $schemaLoader->getSchemaVersion('auth');
+                    // Check current version for core_auth in config_plugins table
+                    $stmt = $pdo->prepare("SELECT value FROM `$pluginsTable` WHERE plugin = ? AND name = 'version'");
+                    $stmt->execute(['core_auth']);
+                    $currentAuthVersion = $stmt->fetchColumn();
+
+                    if (!$currentAuthVersion) {
+                        // No version recorded, set initial version
+                        $currentAuthVersion = '1';
+                        $stmt = $pdo->prepare("INSERT INTO `$pluginsTable` (plugin, name, value, timemodified, timecreated) VALUES (?, 'version', ?, ?, ?)");
+                        $time = time();
+                        $stmt->execute(['core_auth', $currentAuthVersion, $time, $time]);
+                        error_log("Framework: Set initial core_auth version to {$currentAuthVersion}");
+                    }
 
                     // Load Auth version file to get target version
                     $authVersionFile = dirname(__DIR__, 2) . '/src/Core/Auth/version.php';
-                    $targetVersion = 1; // Default fallback
+                    $targetVersion = '1'; // Default fallback
 
                     if (file_exists($authVersionFile)) {
                         $PLUGIN = new stdClass();
                         include $authVersionFile;
-                        $targetVersion = (int)($PLUGIN->version ?? 1);
+                        $targetVersion = $PLUGIN->version ?? '1';
                     }
 
-                    error_log("Framework: Auth schema version check - current: {$currentAuthVersion}, target: {$targetVersion}");
+                    error_log("Framework: Auth version check - current: {$currentAuthVersion}, target: {$targetVersion}");
 
-                    if ($currentAuthVersion < $targetVersion) {
-                        error_log("Framework: Auth upgrade needed from version {$currentAuthVersion} to {$targetVersion}");
+                    if (version_compare($currentAuthVersion, $targetVersion, '<')) {
+                        error_log("Framework: Auth upgrade needed from {$currentAuthVersion} to {$targetVersion}");
 
-                        // Use SchemaLoader to execute upgrades
-                        $authUpgradeDir = dirname(__DIR__, 2) . '/src/Core/Auth/db';
-                        $upgradeResult = $schemaLoader->executeUpgrades('auth', $authUpgradeDir, $targetVersion);
+                        // Run upgrade script if it exists
+                        $upgradeFile = dirname(__DIR__, 2) . '/src/Core/Auth/db/upgrade.php';
+                        if (file_exists($upgradeFile)) {
+                            try {
+                                // Provide variables that upgrade script expects
+                                $from_version = $currentAuthVersion;
+                                $to_version = $targetVersion;
 
-                        if ($upgradeResult) {
-                            error_log("Framework: Auth upgrade completed successfully");
+                                include $upgradeFile;
+
+                                // Update version after successful upgrade
+                                $stmt = $pdo->prepare("UPDATE `$pluginsTable` SET value = ?, timemodified = ? WHERE plugin = ? AND name = 'version'");
+                                $stmt->execute([$targetVersion, time(), 'core_auth']);
+
+                                error_log("Framework: Auth upgrade completed successfully to version {$targetVersion}");
+                            } catch (Exception $e) {
+                                error_log("Framework: Auth upgrade script failed: " . $e->getMessage());
+                            }
                         } else {
-                            error_log("Framework: Auth upgrade failed");
+                            // No upgrade script, just update version
+                            $stmt = $pdo->prepare("UPDATE `$pluginsTable` SET value = ?, timemodified = ? WHERE plugin = ? AND name = 'version'");
+                            $stmt->execute([$targetVersion, time(), 'core_auth']);
+                            error_log("Framework: Auth version updated to {$targetVersion} (no upgrade script)");
                         }
                     } else {
                         error_log("Framework: Auth is up to date (version {$currentAuthVersion})");
@@ -573,10 +582,9 @@ if (!function_exists('ensure_framework_initialized_safe')) {
                         $upgradeFile = $moduleDir . '/db/upgrade.php';
                         if (file_exists($upgradeFile)) {
                             try {
-                                // Create mock objects that upgrade scripts might expect
-                                global $DB, $CFG;
-                                $DB = (object)['pdo' => $pdo];
-                                $CFG = (object)['dbprefix' => $prefix];
+                                // Provide variables that upgrade scripts expect
+                                $from_version = $dbVersion;
+                                $to_version = $fileVersion;
 
                                 include $upgradeFile;
                                 error_log("Framework: Module '{$moduleName}' upgrade script executed");

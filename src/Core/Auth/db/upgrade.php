@@ -1,9 +1,9 @@
 <?php
 /**
- * Auth Component Upgrade Script - Module Style
- * This follows the same pattern as module upgrade scripts
+ * Auth Component Upgrade Script
+ * Upgrades Auth component from any version to the latest
  *
- * Available variables (provided by module-style initialization):
+ * Available variables (provided by framework):
  * - $from_version: Version upgrading from (e.g., "1")
  * - $to_version: Version upgrading to (e.g., "2.0")
  * - $pdo: Direct PDO connection
@@ -11,20 +11,20 @@
  */
 
 try {
-    error_log("Auth Upgrade: Starting upgrade from {$from_version} to {$to_version}");
+    error_log("Auth Upgrade: Starting upgrade from version {$from_version} to version {$to_version}");
 
-    // First check if users table exists (required for foreign key)
-    $usersTable = $prefix . 'users';
-    $stmt = $pdo->query("SHOW TABLES LIKE '{$usersTable}'");
-    $usersTableExists = $stmt->fetchColumn() !== false;
+    // Upgrade to version 2.0: Add user preferences table
+    if (version_compare($from_version, '2.0', '<') && version_compare($to_version, '2.0', '>=')) {
 
-    if (!$usersTableExists) {
-        error_log("Auth Upgrade: ERROR - users table does not exist, cannot create user_preferences with foreign key");
-        throw new Exception("Users table must exist before creating user_preferences table");
-    }
+        // First check if users table exists (required for foreign key)
+        $usersTable = $prefix . 'users';
+        $stmt = $pdo->query("SHOW TABLES LIKE '{$usersTable}'");
+        $usersTableExists = $stmt->fetchColumn() !== false;
 
-    // Upgrade to version 2: Add user preferences table
-    if (version_compare($from_version, '2', '<') && version_compare($to_version, '2', '>=')) {
+        if (!$usersTableExists) {
+            error_log("Auth Upgrade: ERROR - users table does not exist, cannot create user_preferences with foreign key");
+            throw new Exception("Users table must exist before creating user_preferences table");
+        }
 
         // Check if user_preferences table already exists
         $prefsTable = $prefix . 'user_preferences';
@@ -49,10 +49,13 @@ try {
 
             $pdo->exec($sql);
             error_log("Auth Upgrade: user_preferences table created successfully");
+        } else {
+            error_log("Auth Upgrade: user_preferences table already exists, skipping creation");
         }
     }
 
     error_log("Auth Upgrade: Completed successfully to version {$to_version}");
+    return true;
 
 } catch (Exception $e) {
     error_log("Auth Upgrade Error: " . $e->getMessage());
