@@ -377,19 +377,42 @@ if (!function_exists('ensure_framework_initialized_safe')) {
             // Step 4: Initialize database connection through framework (now that core tables exist)
             DatabaseFactory::createGlobal();
 
-            // Step 4.5: Install authentication tables if needed
-            try {
-                $authInstaller = new \DevFramework\Core\Auth\AuthInstaller();
-                if (!$authInstaller->isInstalled()) {
-                    error_log("Framework: Installing authentication tables...");
-                    if ($authInstaller->install()) {
-                        error_log("Framework: Authentication tables installed successfully");
-                    } else {
-                        error_log("Framework: Authentication table installation failed");
-                    }
+            // Step 4.5: Check if auth tables exist directly, bypass AuthInstaller caching issues
+            $usersTable = $prefix . 'users';
+            $sessionsTable = $prefix . 'user_sessions';
+
+            $stmt = $pdo->prepare("SHOW TABLES LIKE ?");
+            $stmt->execute([$usersTable]);
+            $usersTableExists = $stmt->fetchColumn() !== false;
+
+            $stmt->execute([$sessionsTable]);
+            $sessionsTableExists = $stmt->fetchColumn() !== false;
+
+            $hasUsers = false;
+            if ($usersTableExists) {
+                $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM `{$usersTable}`");
+                $stmt->execute();
+                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                $hasUsers = (int)$result['count'] > 0;
+            }
+
+            // Force auth installation if tables don't exist or no users
+            if (!$usersTableExists || !$sessionsTableExists || !$hasUsers) {
+                error_log("Framework: Auth tables missing or empty - forcing installation");
+                error_log("Framework: Users table exists: " . ($usersTableExists ? 'true' : 'false'));
+                error_log("Framework: Sessions table exists: " . ($sessionsTableExists ? 'true' : 'false'));
+                error_log("Framework: Has users: " . ($hasUsers ? 'true' : 'false'));
+
+                try {
+                    $authInstaller = new \DevFramework\Core\Auth\AuthInstaller();
+                    $installResult = $authInstaller->install();
+                    error_log("Framework: Force auth install result: " . ($installResult ? 'true' : 'false'));
+                } catch (Exception $e) {
+                    error_log("Framework: Force auth installation error: " . $e->getMessage());
+                    error_log("Framework: Exception stack trace: " . $e->getTraceAsString());
                 }
-            } catch (Exception $e) {
-                error_log("Framework: Authentication installation error: " . $e->getMessage());
+            } else {
+                error_log("Framework: Auth tables already exist and populated");
             }
 
             // Step 5: Module installation and upgrade detection

@@ -4,6 +4,7 @@ namespace DevFramework\Core\Auth;
 
 use DevFramework\Core\Database\Database;
 use DevFramework\Core\Database\DatabaseException;
+use DevFramework\Core\Database\SchemaLoader;
 use PDO;
 use Exception;
 
@@ -13,10 +14,12 @@ use Exception;
 class AuthInstaller
 {
     private Database $db;
+    private SchemaLoader $schemaLoader;
 
     public function __construct()
     {
         $this->db = Database::getInstance();
+        $this->schemaLoader = new SchemaLoader();
     }
 
     /**
@@ -27,20 +30,19 @@ class AuthInstaller
         try {
             error_log("Framework: AuthInstaller->install() called");
 
-            // Step 1: Create tables
-            error_log("Framework: Creating users table...");
-            $this->createUsersTable();
-            error_log("Framework: Users table created");
+            // Use SchemaLoader to install auth tables and default users
+            $schemaFile = __DIR__ . '/db/install.php';
+            $success = $this->schemaLoader->loadSchema($schemaFile);
 
-            error_log("Framework: Creating user sessions table...");
-            $this->createUserSessionsTable();
-            error_log("Framework: User sessions table created");
-
-            // Step 2: Force insert default users (don't rely on isInstalled check)
-            error_log("Framework: Force inserting default users...");
-            $this->forceInsertDefaultUsers();
-
-            return true;
+            if ($success) {
+                // Update schema version to 1
+                $this->schemaLoader->updateSchemaVersion('auth', 1);
+                error_log("Framework: Auth tables installed successfully via SchemaLoader");
+                return true;
+            } else {
+                error_log("Framework: Failed to install auth tables via SchemaLoader");
+                return false;
+            }
         } catch (Exception $e) {
             error_log("Auth installation failed: " . $e->getMessage());
             error_log("Stack trace: " . $e->getTraceAsString());
@@ -49,6 +51,7 @@ class AuthInstaller
     }
 
     /**
+     * @deprecated Use SchemaLoader instead. Kept for backward compatibility.
      * Create the users table with all required fields - matches User module schema exactly
      */
     private function createUsersTable(): void
@@ -88,6 +91,7 @@ class AuthInstaller
     }
 
     /**
+     * @deprecated Use SchemaLoader instead. Kept for backward compatibility.
      * Create user sessions table - matches User module schema exactly
      */
     private function createUserSessionsTable(): void
@@ -119,6 +123,7 @@ class AuthInstaller
     }
 
     /**
+     * @deprecated Use SchemaLoader instead. Kept for backward compatibility.
      * Force insert default users - bypasses all checks
      */
     private function forceInsertDefaultUsers(): void
@@ -227,14 +232,57 @@ class AuthInstaller
     public function isInstalled(): bool
     {
         try {
-            // Check if users table exists and has at least one user
+            error_log("Framework: AuthInstaller->isInstalled() called");
+
+            // First check if the users table actually exists using a more reliable method
+            $connection = $this->db->getConnection();
+            $tableName = $this->db->addPrefix('users');
+
+            $stmt = $connection->prepare("SHOW TABLES LIKE ?");
+            $stmt->execute([$tableName]);
+            $tableExists = $stmt->fetchColumn() !== false;
+
+            error_log("Framework: AuthInstaller->isInstalled() - users table exists: " . ($tableExists ? 'true' : 'false'));
+
+            if (!$tableExists) {
+                return false;
+            }
+
+            // If table exists, check if it has users
             $userCount = $this->db->count_records('users');
+            error_log("Framework: AuthInstaller->isInstalled() - user count: {$userCount}");
 
             // Consider it "installed" only if the table exists AND has users
-            return $userCount > 0;
-        } catch (DatabaseException $e) {
-            // If we get an exception (table doesn't exist), return false
+            $isInstalled = $userCount > 0;
+            error_log("Framework: AuthInstaller->isInstalled() returning: " . ($isInstalled ? 'true' : 'false'));
+            return $isInstalled;
+        } catch (Exception $e) {
+            error_log("Framework: AuthInstaller->isInstalled() exception: " . $e->getMessage());
+            // If we get any exception, return false to trigger installation
             return false;
+        }
+    }
+
+    /**
+     * Get installation status including schema version
+     */
+    public function getInstallationStatus(): array
+    {
+        try {
+            $userCount = $this->db->count_records('users');
+            return [
+                'users_table_exists' => $userCount >= 0,
+                'has_users' => $userCount > 0,
+                'user_count' => $userCount,
+                'schema_version' => $this->schemaLoader->getSchemaVersion('auth')
+            ];
+        } catch (DatabaseException $e) {
+            return [
+                'users_table_exists' => false,
+                'has_users' => false,
+                'user_count' => 0,
+                'schema_version' => 0
+            ];
         }
     }
 }

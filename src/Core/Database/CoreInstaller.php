@@ -9,10 +9,12 @@ namespace DevFramework\Core\Database;
 class CoreInstaller
 {
     private Database $database;
+    private SchemaLoader $schemaLoader;
 
     public function __construct()
     {
         $this->database = Database::getInstance();
+        $this->schemaLoader = new SchemaLoader();
     }
 
     /**
@@ -37,13 +39,19 @@ class CoreInstaller
             // Make sure the database connection is working
             $this->database->connect();
 
-            // Install config_plugins table
-            if (!$this->tableExists('config_plugins')) {
-                $this->createConfigPluginsTable();
-                error_log('CoreInstaller: config_plugins table created successfully');
-            }
+            // Use SchemaLoader to install core tables
+            $schemaFile = __DIR__ . '/../db/install.php';
+            $success = $this->schemaLoader->loadSchema($schemaFile);
 
-            return true;
+            if ($success) {
+                // Update schema version to 1
+                $this->schemaLoader->updateSchemaVersion('core', 1);
+                error_log('CoreInstaller: Core tables installed successfully via SchemaLoader');
+                return true;
+            } else {
+                error_log('CoreInstaller: Failed to install core tables via SchemaLoader');
+                return false;
+            }
         } catch (\Exception $e) {
             error_log('CoreInstaller: Failed to install core tables: ' . $e->getMessage());
             return false;
@@ -74,36 +82,13 @@ class CoreInstaller
     }
 
     /**
-     * Create the config_plugins table
-     */
-    private function createConfigPluginsTable(): void
-    {
-        // Use the database's addPrefix method to get the correct table name with prefix
-        $tableName = $this->database->addPrefix('config_plugins');
-
-        $sql = "CREATE TABLE `{$tableName}` (
-            `id` int(11) NOT NULL AUTO_INCREMENT,
-            `plugin` varchar(100) NOT NULL COMMENT 'Plugin/module name',
-            `name` varchar(100) NOT NULL COMMENT 'Configuration name',
-            `value` longtext COMMENT 'Configuration value',
-            `timecreated` int(11) NOT NULL DEFAULT 0 COMMENT 'Time created',
-            `timemodified` int(11) NOT NULL DEFAULT 0 COMMENT 'Time modified',
-            PRIMARY KEY (`id`),
-            UNIQUE KEY `plugin_name` (`plugin`, `name`),
-            KEY `plugin` (`plugin`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Plugin configuration storage'";
-
-        $connection = $this->database->getConnection();
-        $connection->exec($sql);
-    }
-
-    /**
      * Get installation status
      */
     public function getInstallationStatus(): array
     {
         return [
-            'config_plugins' => $this->tableExists('config_plugins')
+            'config_plugins' => $this->tableExists('config_plugins'),
+            'schema_version' => $this->schemaLoader->getSchemaVersion('core')
         ];
     }
 }

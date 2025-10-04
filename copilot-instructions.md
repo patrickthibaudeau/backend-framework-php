@@ -8,6 +8,7 @@
 - **Environment**: Docker-based with Nginx + PHP-FPM via Supervisor
 - **Database**: MySQL 8.4 with Moodle-compatible abstraction layer
 - **Dependency Manager**: Composer
+- **Containerization**: All testing is to be done in the containerized environment
 
 ## PHP Standards & Style
 - **Always** start PHP files with `<?php` and `declare(strict_types=1);`
@@ -34,6 +35,9 @@
   - Always use parameterized queries via the abstraction layer
 - Table names use configurable prefix via `$tablePrefix`
 - Return `stdClass` objects for database records (Moodle compatibility)
+- Table fields never use reserved SQL keywords
+- Table fields never use the table name. For example: `user` table cannot have a field named `user_firstname`. It should be `firstname` instead.
+
 
 ### Authentication System
 - Use `AuthenticationManager` singleton for all auth operations
