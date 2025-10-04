@@ -39,10 +39,12 @@ class SchemaLoader
             $db = $this->database;
             $connection = $this->database->getConnection();
 
-            // Helper function to get prefixed table name - use Database class's method
+            // Helper function to get prefixed table name - use environment prefix directly for reliability
             $getTableName = function($tableName) use ($db) {
-                $prefixedName = $db->addPrefix($tableName);
-                error_log("SchemaLoader: getTableName('{$tableName}') -> '{$prefixedName}'");
+                // Use environment prefix directly to ensure it's available during initial installation
+                $prefix = $_ENV['DB_PREFIX'] ?? 'dev_';
+                $prefixedName = $prefix . $tableName;
+                error_log("SchemaLoader: getTableName('{$tableName}') -> '{$prefixedName}' (using env prefix)");
                 return $prefixedName;
             };
 
@@ -54,7 +56,9 @@ class SchemaLoader
 
             // Helper function to check if table exists
             $tableExists = function($tableName) use ($connection, $db) {
-                $prefixedTableName = $db->addPrefix($tableName);
+                // Use environment prefix directly to ensure consistency
+                $prefix = $_ENV['DB_PREFIX'] ?? 'dev_';
+                $prefixedTableName = $prefix . $tableName;
                 error_log("SchemaLoader: tableExists('{$tableName}') checking '{$prefixedTableName}'");
                 try {
                     // Use SHOW TABLES without parameters to avoid SQL syntax issues

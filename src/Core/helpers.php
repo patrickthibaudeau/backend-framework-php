@@ -330,6 +330,7 @@ if (!function_exists('ensure_framework_initialized_safe')) {
             // Step 3: Check and create core tables if needed
             $coreTable = $prefix . 'config';
             $pluginsTable = $prefix . 'config_plugins';
+            $schemaVersionsTable = $prefix . 'schema_versions';
 
             $stmt = $pdo->prepare("SHOW TABLES LIKE ?");
             $stmt->execute([$coreTable]);
@@ -338,7 +339,10 @@ if (!function_exists('ensure_framework_initialized_safe')) {
             $stmt->execute([$pluginsTable]);
             $pluginsTableExists = $stmt->fetchColumn() !== false;
 
-            if (!$coreTableExists || !$pluginsTableExists) {
+            $stmt->execute([$schemaVersionsTable]);
+            $schemaVersionsTableExists = $stmt->fetchColumn() !== false;
+
+            if (!$coreTableExists || !$pluginsTableExists || !$schemaVersionsTableExists) {
                 error_log("Framework: Core tables missing, creating them...");
 
                 // Create core config table
@@ -372,10 +376,35 @@ if (!function_exists('ensure_framework_initialized_safe')) {
                     $pdo->exec($sql);
                     error_log("Framework: Plugins config table created");
                 }
+
+                // Create schema_versions table
+                if (!$schemaVersionsTableExists) {
+                    $sql = "CREATE TABLE `$schemaVersionsTable` (
+                        component VARCHAR(100) NOT NULL COMMENT 'Component name (core, auth, etc.)',
+                        version INT(11) NOT NULL DEFAULT 0 COMMENT 'Current schema version',
+                        timecreated INT(11) NOT NULL DEFAULT 0 COMMENT 'Time created',
+                        timemodified INT(11) NOT NULL DEFAULT 0 COMMENT 'Time modified',
+                        PRIMARY KEY (component)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Schema version tracking'";
+                    $pdo->exec($sql);
+                    error_log("Framework: Schema versions table created");
+                }
             }
 
             // Step 4: Initialize database connection through framework (now that core tables exist)
             DatabaseFactory::createGlobal();
+
+            // CRITICAL FIX: Ensure the Database instance has the correct prefix
+            // This fixes the issue where schema_versions table was created without prefix
+            global $DB;
+            if (isset($DB)) {
+                // Force the Database instance to use the correct prefix
+                $reflection = new ReflectionClass($DB);
+                $prefixProperty = $reflection->getProperty('tablePrefix');
+                $prefixProperty->setAccessible(true);
+                $prefixProperty->setValue($DB, $prefix);
+                error_log("Framework: Database prefix explicitly set to '{$prefix}'");
+            }
 
             // Step 4.5: Check if auth tables exist directly, bypass AuthInstaller caching issues
             $usersTable = $prefix . 'users';
@@ -413,6 +442,42 @@ if (!function_exists('ensure_framework_initialized_safe')) {
                 }
             } else {
                 error_log("Framework: Auth tables already exist and populated");
+
+                // Check if Auth component needs upgrade using SchemaLoader approach
+                try {
+                    $schemaLoader = new \DevFramework\Core\Database\SchemaLoader();
+                    $currentAuthVersion = $schemaLoader->getSchemaVersion('auth');
+
+                    // Load Auth version file to get target version
+                    $authVersionFile = dirname(__DIR__, 2) . '/src/Core/Auth/version.php';
+                    $targetVersion = 1; // Default fallback
+
+                    if (file_exists($authVersionFile)) {
+                        $PLUGIN = new stdClass();
+                        include $authVersionFile;
+                        $targetVersion = (int)($PLUGIN->version ?? 1);
+                    }
+
+                    error_log("Framework: Auth schema version check - current: {$currentAuthVersion}, target: {$targetVersion}");
+
+                    if ($currentAuthVersion < $targetVersion) {
+                        error_log("Framework: Auth upgrade needed from version {$currentAuthVersion} to {$targetVersion}");
+
+                        // Use SchemaLoader to execute upgrades
+                        $authUpgradeDir = dirname(__DIR__, 2) . '/src/Core/Auth/db';
+                        $upgradeResult = $schemaLoader->executeUpgrades('auth', $authUpgradeDir, $targetVersion);
+
+                        if ($upgradeResult) {
+                            error_log("Framework: Auth upgrade completed successfully");
+                        } else {
+                            error_log("Framework: Auth upgrade failed");
+                        }
+                    } else {
+                        error_log("Framework: Auth is up to date (version {$currentAuthVersion})");
+                    }
+                } catch (Exception $e) {
+                    error_log("Framework: Auth upgrade check error: " . $e->getMessage());
+                }
             }
 
             // Step 5: Module installation and upgrade detection

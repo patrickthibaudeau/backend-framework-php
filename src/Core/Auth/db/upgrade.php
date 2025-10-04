@@ -1,25 +1,39 @@
 <?php
 /**
- * Auth Database Schema - Upgrade Script
- * Contains upgrade logic for authentication tables
+ * Auth Component Upgrade Script - Module Style
+ * This follows the same pattern as module upgrade scripts
  *
- * This file is loaded by SchemaLoader and has access to:
- * - $db: Database instance
- * - $connection: PDO connection
- * - $prefix: Table prefix
- * - $getTableName($name): Helper to get prefixed table name
- * - $executeSql($sql): Helper to execute SQL
- * - $tableExists($name): Helper to check if table exists
- * - $from_version: Version upgrading from
- * - $to_version: Version upgrading to
+ * Available variables (provided by module-style initialization):
+ * - $from_version: Version upgrading from (e.g., "1")
+ * - $to_version: Version upgrading to (e.g., "2.0")
+ * - $pdo: Direct PDO connection
+ * - $prefix: Table prefix (e.g., "dev_")
  */
 
 try {
+    error_log("Auth Upgrade: Starting upgrade from {$from_version} to {$to_version}");
 
-    // Upgrade to version 4: Add user preferences table
-    if ($from_version < 2 && $to_version >= 2) {
-        if (!$tableExists('user_preferences')) {
-            $prefsTable = $getTableName('user_preferences');
+    // First check if users table exists (required for foreign key)
+    $usersTable = $prefix . 'users';
+    $stmt = $pdo->query("SHOW TABLES LIKE '{$usersTable}'");
+    $usersTableExists = $stmt->fetchColumn() !== false;
+
+    if (!$usersTableExists) {
+        error_log("Auth Upgrade: ERROR - users table does not exist, cannot create user_preferences with foreign key");
+        throw new Exception("Users table must exist before creating user_preferences table");
+    }
+
+    // Upgrade to version 2: Add user preferences table
+    if (version_compare($from_version, '2', '<') && version_compare($to_version, '2', '>=')) {
+
+        // Check if user_preferences table already exists
+        $prefsTable = $prefix . 'user_preferences';
+        $stmt = $pdo->query("SHOW TABLES LIKE '{$prefsTable}'");
+        $tableExists = $stmt->fetchColumn() !== false;
+
+        if (!$tableExists) {
+            error_log("Auth Upgrade: Creating user_preferences table");
+
             $sql = "CREATE TABLE `{$prefsTable}` (
                 id INT(11) NOT NULL AUTO_INCREMENT,
                 userid INT(11) NOT NULL COMMENT 'User ID',
@@ -30,17 +44,18 @@ try {
                 PRIMARY KEY (id),
                 UNIQUE KEY user_pref (userid, name),
                 KEY userid (userid),
-                FOREIGN KEY (userid) REFERENCES {$getTableName('users')}(id) ON DELETE CASCADE
+                FOREIGN KEY (userid) REFERENCES `{$usersTable}`(id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='User preferences storage'";
-            $executeSql($sql);
-            error_log("Auth Schema: Upgraded to version 4 - Created user_preferences table");
+
+            $pdo->exec($sql);
+            error_log("Auth Upgrade: user_preferences table created successfully");
         }
     }
 
-    error_log("Auth Schema: Upgrade completed to version {$to_version}");
-    return true;
+    error_log("Auth Upgrade: Completed successfully to version {$to_version}");
 
 } catch (Exception $e) {
-    error_log("Auth Schema Upgrade Error: " . $e->getMessage());
-    return false;
+    error_log("Auth Upgrade Error: " . $e->getMessage());
+    error_log("Auth Upgrade Stack Trace: " . $e->getTraceAsString());
+    throw $e; // Re-throw to fail the upgrade
 }
