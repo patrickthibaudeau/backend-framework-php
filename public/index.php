@@ -34,6 +34,7 @@ $path = parse_url($requestUri, PHP_URL_PATH);
 // Basic routing
 switch ($path) {
     case '/':
+    case '/index.php':
         handleHome();
         break;
 
@@ -66,6 +67,18 @@ switch ($path) {
 
 function handleHome()
 {
+    // Redirect to login page if user not authenticated
+    try {
+        if (class_exists('DevFramework\\Core\\Auth\\AuthenticationManager')) {
+            $am = \DevFramework\Core\Auth\AuthenticationManager::getInstance();
+            if (!$am->isAuthenticated()) {
+                header('Location: /login/login.php');
+                exit;
+            }
+        }
+    } catch (Throwable $e) {
+        // Fallback silently – will just show JSON home if auth manager fails
+    }
     header('Content-Type: application/json');
     echo json_encode([
         'message' => 'Development Framework Web Application',
@@ -74,7 +87,7 @@ function handleHome()
         'environment' => getenv('APP_ENV') ?: 'production',
         'debug' => getenv('APP_DEBUG') === 'true',
         'available_endpoints' => [
-            '/' => 'Home - this page',
+            '/' => 'Home - this page (redirects to login if not authenticated)',
             '/config' => 'Configuration information',
             '/health' => 'Health check',
             '/install-status' => 'Installation status of core tables',
