@@ -1,0 +1,130 @@
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold">{{#str}}users_title, theme_default{{/str}}</h1>
+  <a href="{{home_link}}" class="text-blue-600 hover:underline">{{#str}}back_admin_home, theme_default{{/str}}</a>
+</div>
+{{#flashes}}
+  <div class="mb-4 p-3 rounded {{css_class}}">{{msg}}</div>
+{{/flashes}}
+<div class="bg-white p-4 rounded shadow">
+  <form method="get" class="mb-4 flex items-center flex-wrap gap-2">
+    <input type="text" name="q" value="{{filter_value}}" placeholder="{{#str}}filter, theme_default{{/str}}" class="border rounded px-3 py-1 w-64" />
+    <button class="bg-blue-600 text-white px-4 py-1 rounded text-sm">{{#str}}filter, theme_default{{/str}}</button>
+    {{#has_filter}}
+      <a href="{{clear_filters_url}}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm inline-flex items-center">{{#str}}clear_filters_button, theme_default{{/str}}</a>
+    {{/has_filter}}
+    <a href="{{toggle_deleted_url}}" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1 rounded text-sm inline-flex items-center">
+      {{#show_deleted}}{{#str}}hide_deleted_button, theme_default{{/str}}{{/show_deleted}}
+      {{^show_deleted}}{{#str}}show_deleted_button, theme_default{{/str}}{{/show_deleted}}
+    </a>
+  </form>
+  <div class="overflow-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left border-b">
+          <th class="py-2 px-2">ID</th>
+            <th class="py-2 px-2">{{#str}}username_label, theme_default{{/str}}</th>
+            <th class="py-2 px-2">{{#str}}user_name_label, theme_default{{/str}}</th>
+            <th class="py-2 px-2">{{#str}}user_email_label, theme_default{{/str}}</th>
+            <th class="py-2 px-2">{{#str}}user_auth_label, theme_default{{/str}}</th>
+            <th class="py-2 px-2">{{#str}}user_status_label, theme_default{{/str}}</th>
+            <th class="py-2 px-2">{{#str}}user_lastlogin_label, theme_default{{/str}}</th>
+            <th class="py-2 px-2">{{#str}}user_created_label, theme_default{{/str}}</th>
+            <th class="py-2 px-2 text-right">{{#str}}action, theme_default{{/str}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#users}}
+        <tr class="border-b hover:bg-gray-50 {{#is_deleted}}opacity-60{{/is_deleted}}">
+          <td class="py-1 px-2">{{id}}</td>
+          <td class="py-1 px-2 font-medium">{{username}}</td>
+          <td class="py-1 px-2">{{name}}</td>
+          <td class="py-1 px-2">{{email}}</td>
+          <td class="py-1 px-2">{{auth}}</td>
+          <td class="py-1 px-2">
+            {{#is_deleted}}
+              <span class="inline-block text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">{{status}}</span>
+            {{/is_deleted}}
+            {{^is_deleted}}
+              {{status}}
+            {{/is_deleted}}
+          </td>
+          <td class="py-1 px-2">{{lastlogin}}</td>
+          <td class="py-1 px-2">{{created}}</td>
+          <td class="py-1 px-2 text-right space-x-2">
+            <a href="{{edit_url}}" class="text-blue-600 hover:underline text-xs">{{#str}}edit_link, theme_default{{/str}}</a>
+            {{#is_admin}}
+              <span class="text-gray-400 text-xs">{{#str}}delete_button, theme_default{{/str}}</span>
+            {{/is_admin}}
+            {{^is_admin}}
+              {{^is_deleted}}
+              <button type="button" data-action="open-delete" data-userid="{{id}}" data-username="{{username}}" class="text-red-600 hover:underline text-xs">{{#str}}delete_button, theme_default{{/str}}</button>
+              {{/is_deleted}}
+              {{#is_deleted}}
+              <span class="text-gray-400 text-xs">{{#str}}delete_button, theme_default{{/str}}</span>
+              {{/is_deleted}}
+            {{/is_admin}}
+          </td>
+        </tr>
+        {{/users}}
+        {{^users}}
+        <tr><td colspan="9" class="py-4 text-center text-gray-500 text-sm">{{#str}}no_users_found, theme_default{{/str}}</td></tr>
+        {{/users}}
+      </tbody>
+    </table>
+  </div>
+  {{#show_pagination}}
+  <div class="flex items-center justify-between mt-4 text-sm">
+    <div>{{#str}}page, theme_default{{/str}} {{current_page}} / {{total_pages}}</div>
+    <div class="space-x-2">
+      {{#has_prev}}<a href="{{prev_url}}" class="px-3 py-1 border rounded hover:bg-gray-100">&larr;</a>{{/has_prev}}
+      {{#has_next}}<a href="{{next_url}}" class="px-3 py-1 border rounded hover:bg-gray-100">&rarr;</a>{{/has_next}}
+    </div>
+  </div>
+  {{/show_pagination}}
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteUserModal" class="hidden fixed inset-0 z-50" aria-labelledby="deleteUserModalTitle" role="dialog" aria-modal="true">
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" data-action="close-delete"></div>
+  <div class="relative mx-auto mt-32 max-w-md bg-white rounded-lg shadow-lg ring-1 ring-black/10 p-6 animate-fade-in">
+    <h3 id="deleteUserModalTitle" class="text-lg font-semibold mb-3 flex items-center gap-2">
+      <svg class="h-5 w-5 text-red-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4m0 4h.01M5 19h14a2 2 0 0 0 2-2V7l-7-4H7L5 7v10a2 2 0 0 0 2 2z"/></svg>
+      {{#str}}delete_user_confirm_title, theme_default{{/str}}
+    </h3>
+    <p class="text-sm text-slate-600 leading-relaxed mb-4">
+      {{#str}}delete_user_confirm_message_prefix, theme_default{{/str}} <span class="font-semibold" id="deleteUserName"></span>?<br/>
+      {{#str}}delete_user_confirm_message_suffix, theme_default{{/str}}
+    </p>
+    <form method="post" class="mt-2 flex items-center justify-end gap-3">
+      <input type="hidden" name="action" value="delete_user" />
+      <input type="hidden" name="userid" id="deleteUserId" value="" />
+      <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
+      <button type="button" data-action="close-delete" class="px-4 py-2 text-sm rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">{{#str}}cancel_button, theme_default{{/str}}</button>
+      <button type="submit" class="px-4 py-2 text-sm rounded bg-red-600 text-white hover:bg-red-700 focus-ring">{{#str}}confirm_delete_button, theme_default{{/str}}</button>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  const modal = document.getElementById('deleteUserModal');
+  if(!modal) return;
+  const userIdInput = document.getElementById('deleteUserId');
+  const userNameSpan = document.getElementById('deleteUserName');
+  const openers = document.querySelectorAll('[data-action="open-delete"]');
+  const closers = modal.querySelectorAll('[data-action="close-delete"]');
+  function openModal(id, username){
+    userIdInput.value = id;
+    userNameSpan.textContent = username;
+    modal.classList.remove('hidden');
+    // trap focus (simple): focus cancel button
+    const firstBtn = modal.querySelector('[data-action="close-delete"]');
+    firstBtn && firstBtn.focus();
+  }
+  function closeModal(){ modal.classList.add('hidden'); }
+  openers.forEach(btn=>btn.addEventListener('click', e=>{ e.preventDefault(); openModal(btn.getAttribute('data-userid'), btn.getAttribute('data-username')); }));
+  closers.forEach(el=>el.addEventListener('click', e=>{ e.preventDefault(); closeModal(); }));
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !modal.classList.contains('hidden')) { closeModal(); } });
+  // close when clicking backdrop (already has data-action)
+})();
+</script>

@@ -184,8 +184,12 @@ class Output
         // Inject language string lambda helper if not already provided
         if (!isset($dataArr['str']) || !is_callable($dataArr['str'])) {
             $dataArr['str'] = function ($text, $helper) {
+                // First render nested Mustache tags inside the section so dynamic keys like {{label_key}} resolve
+                if (method_exists($helper, 'render')) {
+                    try { $text = $helper->render($text); } catch (\Throwable $e) { /* ignore */ }
+                }
                 $raw = trim($text);
-                // Allow multiline section content; collapse internal newlines/spaces
+                // Collapse internal whitespace/newlines
                 $raw = preg_replace('/\s+/', ' ', $raw);
                 // Expected format: key, component[, param=value, param2=value]
                 $parts = array_map('trim', explode(',', $raw));
@@ -202,39 +206,22 @@ class Output
                 }
                 if ($key === '') { return ''; }
 
-                // Determine language (current from LanguageManager if available)
                 $language = 'en';
-                try {
-                    $lm = LanguageManager::getInstance();
-                    $language = $lm->getCurrentLanguage();
-                } catch (\Throwable $e) {
-                    // ignore
-                }
-
+                try { $lm = LanguageManager::getInstance(); $language = $lm->getCurrentLanguage(); } catch (\Throwable $e) { /* ignore */ }
                 $value = null;
 
-                // Theme component support: expects component like theme_default
                 if ($component !== '' && str_starts_with($component, 'theme_')) {
                     $value = $this->getThemeLangString($component, $key, $language, $params);
                 } elseif ($component !== '') {
-                    // Module / core component via LanguageManager
                     try {
                         $lm = LanguageManager::getInstance();
                         $value = $lm->formatString($component, $key, $params, $language);
-                        if ($value === $key) { // fallback not found, treat as null
-                            $value = null;
-                        }
-                    } catch (\Throwable $e) {
-                        $value = null;
-                    }
+                        if ($value === $key) { $value = null; }
+                    } catch (\Throwable $e) { $value = null; }
                 }
-
-                // If still null try theme_default as a last resort for common keys
                 if ($value === null) {
                     $value = $this->getThemeLangString('theme_default', $key, $language, $params);
                 }
-
-                // Final fallback: return key itself
                 return $value ?? $key;
             };
         }
