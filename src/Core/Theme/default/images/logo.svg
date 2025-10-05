@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="logoTitle">
+  <title id="logoTitle">Site Logo</title>
+  <defs>
+    <linearGradient id="gradTheme" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="36" height="36" rx="8" fill="url(#gradTheme)"/>
+  <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" font-family="Inter, system-ui, Arial" font-size="18" font-weight="600" fill="#FFFFFF">A</text>
+</svg>
+

@@ -10,8 +10,11 @@
           <svg x-show="drawerOpen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
         {{/is_authenticated}}
-        <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-brand-600 text-white font-semibold">A</span>
-        <span class="font-semibold text-lg hidden md:inline-block">{{site_name}}</span>
+        <!-- Updated Logo: fills nav height proportionally without button styling -->
+        <a href="/" class="flex items-center h-16 shrink-0 group" aria-label="{{site_name}}">
+          <img src="/theme_assets.php?path=logo" alt="{{site_name}}" class="h-10 w-auto max-h-full object-contain select-none pointer-events-none transition-transform duration-150 group-hover:scale-105" loading="lazy" decoding="async" height="40">
+        </a>
+        <span class="font-semibold text-lg hidden md:inline-block leading-tight">{{site_name}}</span>
       </div>
       <nav class="hidden md:flex items-center gap-6 text-sm" aria-label="Primary">
         {{#is_authenticated}}
