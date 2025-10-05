@@ -3,6 +3,7 @@ namespace DevFramework\Core\Output;
 
 use Exception;
 use DevFramework\Core\Module\LanguageManager; // Added for language strings
+use DevFramework\Core\Theme\NavigationManager; // NEW for automatic nav injection
 
 /**
  * Output rendering manager using Mustache templates.
@@ -357,7 +358,15 @@ class Output
      */
     public function header(array|object $data = []): string
     {
-        return $this->renderFromTemplate('theme_header', (array)$data);
+        $arr = (array)$data;
+        // Auto inject nav & drawer_items if absent
+        if (!array_key_exists('nav', $arr)) {
+            try { $arr['nav'] = NavigationManager::getInstance()->getNav(); } catch (\Throwable $e) { $arr['nav'] = []; }
+        }
+        if (!array_key_exists('drawer_items', $arr)) {
+            try { $arr['drawer_items'] = NavigationManager::getInstance()->getDrawer(); } catch (\Throwable $e) { $arr['drawer_items'] = []; }
+        }
+        return $this->renderFromTemplate('theme_header', $arr);
     }
 
     /**

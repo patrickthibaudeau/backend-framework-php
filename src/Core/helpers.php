@@ -1307,3 +1307,48 @@ if (!function_exists('dirroot')) {
     }
 }
 
+if (!function_exists('nav_config')) {
+    /**
+     * Get or set the top navigation items.
+     * Usage:
+     *   nav_config() -> returns current nav (with active flag applied)
+     *   nav_config([$items]) -> replaces nav
+     *   nav_config([$items], true) -> merges (appends) items
+     */
+    function nav_config(?array $items = null, bool $merge = false): array
+    {
+        $nm = \DevFramework\Core\Theme\NavigationManager::getInstance();
+        if ($items !== null) {
+            $nm->setNav($items, $merge);
+        }
+        return $nm->getNav();
+    }
+}
+
+if (!function_exists('drawer_config')) {
+    /**
+     * Get or set the drawer navigation items.
+     * Usage analogous to nav_config().
+     */
+    function drawer_config(?array $items = null, bool $merge = false): array
+    {
+        $nm = \DevFramework\Core\Theme\NavigationManager::getInstance();
+        if ($items !== null) {
+            $nm->setDrawer($items, $merge);
+        }
+        return $nm->getDrawer();
+    }
+}
+
+if (!function_exists('add_nav_item')) {
+    /**
+     * Append a single item to the top navigation.
+     * Returns updated nav array.
+     */
+    function add_nav_item(array $item): array
+    {
+        $nm = \DevFramework\Core\Theme\NavigationManager::getInstance();
+        $nm->addNavItem($item);
+        return $nm->getNav();
+    }
+}

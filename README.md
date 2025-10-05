@@ -730,3 +730,165 @@ echo $OUTPUT->footer();
 ```
 
 > Tip: For large, repeatable sections, consider creating a dedicated Mustache template and calling `renderFromTemplate()` in place of inline HTML.
+
+## UI Theme & Output System
+
+The framework includes a default admin theme with Tailwind CSS, reusable Mustache templates, and convenience rendering helpers.
+
+### Header & Footer Rendering
+Use the global `$OUTPUT` object (auto-initialized in `helpers.php`).
+
+```php
+require_once __DIR__ . '/../src/Core/helpers.php';
+
+echo $OUTPUT->header([
+  'page_title' => 'Dashboard',       // Optional, becomes <title> prefix
+  'site_name'  => 'DevFramework',    // Optional, defaults can be supplied centrally
+  // 'nav'      => [...],             // Optional override of top nav (see Navigation section)
+  // 'drawer_items' => [...],        // Optional override of drawer nav items
+]);
+
+// Page content here...
+
+echo $OUTPUT->footer([
+  'footer_links' => [
+    ['url' => '/privacy.php', 'label' => 'Privacy'],
+    ['url' => '/terms.php',   'label' => 'Terms'],
+  ]
+]);
+```
+
+If you omit `nav` or `drawer_items`, defaults are injected automatically by the Navigation Manager.
+
+### Default Theme Structure
+```
+src/Core/Theme/default/
+  templates/          # Mustache partials (header, footer, left_drawer, navigation, icons)
+  lang/en/strings.php # Theme language strings (used by {{#str}} helper)
+  navigation.php      # Default nav + drawer configuration
+  version.php         # Theme plugin version (stored in config_plugins)
+```
+
+### Partials Overview
+- `header.mustache` – Outer HTML, includes `<head>`, navigation, icons sprite, left drawer, `<main>` start.
+- `footer.mustache` – Closes layout, renders footer & scripts.
+- `navigation.mustache` – Top bar branding + primary links.
+- `left_drawer.mustache` – Collapsible side navigation (Alpine.js driven state).
+- `icons.mustache` – Inline SVG symbol sprite (Lucide subset) referenced with `<use href="#icon-name"/>`.
+
+### Icons (Lucide Sprite)
+Add additional icons by editing `icons.mustache` and inserting more `<symbol>` blocks:
+```mustache
+<symbol id="icon-user" viewBox="0 0 24 24" ...>
+  <path d="..." />
+</symbol>
+```
+Then reference:
+```html
+<svg class="h-5 w-5"><use href="#icon-user" /></svg>
+```
+
+### Accessibility Patterns
+- Drawer toggle uses `aria-label` that switches between localized expand/collapse strings.
+- Screen‑reader only text (`sr-only`) is present for stateful controls.
+- Provide descriptive labels for custom icons where semantics matter; decorative icons should use `aria-hidden="true"`.
+
+## Localization in Templates ({{#str}})
+You can localize strings directly inside Mustache templates with a section lambda:
+```mustache
+<h1>{{#str}}theme_name, theme_default{{/str}}</h1>
+<p>{{#str}}welcome_message, auth, name=Alice{{/str}}</p>
+```
+Format: `{{#str}}key, component[, param=value, param2=value]{{/str}}`
+- `component` for theme strings: `theme_default`
+- `component` for modules: module directory name (e.g. `auth`, `test`)
+- Additional `param=value` pairs replace `{param}` placeholders inside the language string.
+Fallback order: specific component → `theme_default` → raw key.
+
+## Navigation System
+Navigation is centrally managed; no need to redefine arrays on every page.
+
+### Default Configuration
+Defined in `src/Core/Theme/default/navigation.php`:
+```php
+return [
+  'nav' => [ ['url'=>'/index.php','label'=>'Home'], ... ],
+  'drawer' => [ ['url'=>'/dashboard.php','label'=>'Dashboard','icon'=>'<svg...>'], ... ],
+];
+```
+Active state is auto-detected by matching the current script path with each item’s URL.
+
+### Global Helper Functions
+```php
+nav_config();                       // Get current top nav
+nav_config([['url'=>'/x','label'=>'X']]);       // Replace nav
+nav_config([['url'=>'/extra','label'=>'Extra']], true); // Merge/append
+add_nav_item(['url'=>'/faq.php','label'=>'FAQ']);       // Append single item
+
+drawer_config();                   // Get current drawer items
+drawer_config([['url'=>'/tools.php','label'=>'Tools']], true); // Merge
+```
+If you pass custom `nav` or `drawer_items` arrays directly to `$OUTPUT->header()`, those override the defaults for that render only.
+
+### Navigation Caching (APCu)
+Navigation configuration is cached to reduce file I/O.
+- Enabled automatically if APCu is available and not disabled.
+- Uses file modification time of `navigation.php` for invalidation.
+
+Environment vars:
+```
+NAV_CACHE_DISABLE=1   # Disable nav caching
+NAV_CACHE_TTL=600     # Override default TTL (seconds, default 300)
+```
+Programmatic cache clearing:
+```php
+\DevFramework\Core\Theme\NavigationManager::getInstance()->clearCache();
+```
+
+## Directory Root Helper (dirroot)
+Every template automatically receives `{{dirroot}}` pointing to the installation root. Use it for constructing absolute filesystem paths (NOT necessarily public URLs):
+```mustache
+<img src="/assets/logo.svg" alt="Logo"> {{! for web URLs prefer route-relative paths }}
+```
+If you need a base public URL, introduce (and pass) a `base_url` variable separately.
+
+## Adding a New Page (Minimal Example)
+```php
+<?php
+require_once __DIR__ . '/../src/Core/helpers.php';
+
+// Optionally extend navigation for just this request
+add_nav_item(['url' => '/reports.php', 'label' => 'Reports']);
+
+echo $OUTPUT->header(['page_title' => 'Reports']);
+?>
+  <h1 class="text-2xl font-bold mb-4">Reports</h1>
+  <p>Reports overview content...</p>
+<?php
+echo $OUTPUT->footer();
+```
+
+## Extending Icons
+1. Add `<symbol>` in `icons.mustache`.
+2. Reference with `<use href="#icon-yourid" />`.
+3. Keep stroke properties consistent for visual coherence.
+
+## Overriding Theme Templates
+Override search order by registering extra template roots (future enhancement) or adding new partials inside the default theme. Current resolution order (simplified):
+1. `src/Core/<Component>/templates/<name>.mustache`
+2. `src/Core/<component>/templates/<name>.mustache` (lowercase)
+3. `src/Core/<Component>/default/templates/<name>.mustache` (theme path)
+4. `modules/<Component>/templates/<name>.mustache`
+5. `modules/<component>/templates/<name>.mustache`
+
+## Summary of Newly Added Features
+- Default Tailwind-based admin theme (header, footer, navigation, left drawer)
+- Icons sprite partial (Lucide subset) and `<use>` referencing
+- Automatic nav & drawer injection via `NavigationManager`
+- APCu caching for navigation (mtime-invalidated)
+- Global helpers: `nav_config`, `drawer_config`, `add_nav_item`
+- Localization lambda: `{{#str}}key, component[, param=value]{{/str}}`
+- Accessibility patterns (aria-label, sr-only) in interactive components
+- Automatic `dirroot` injection into template data
+- Theme version install/upgrade tracked in `config_plugins`
+
