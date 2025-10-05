@@ -81,9 +81,13 @@ try {
     }
 } catch (Throwable $e) { $addResult('modules','module','error','Module discovery failed: '.$e->getMessage()); }
 
-// Capability sync
-try { AccessManager::getInstance()->syncAllCapabilities(); $addResult('capabilities','access','success','Capabilities synchronized'); }
-catch (Throwable $e) { $addResult('capabilities','access','error','Capability sync failed: '.$e->getMessage()); }
+ // Capability sync (silent on success; only report errors)
+try {
+    DevFramework\Core\Access\AccessManager::getInstance()->syncAllCapabilities();
+    // Success intentionally not added to $results to avoid cluttering upgrade view with core/module capability definitions.
+} catch (Throwable $e) {
+    $addResult('capabilities','access','error','Capability sync failed: '.$e->getMessage());
+}
 
 $successCount = count(array_filter($results, fn($r)=>$r['status']==='success'));
 $errorCount   = count(array_filter($results, fn($r)=>$r['status']==='error'));
