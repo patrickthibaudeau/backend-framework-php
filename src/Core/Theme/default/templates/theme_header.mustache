@@ -24,7 +24,7 @@
 <body class="h-full min-h-screen flex flex-col text-slate-800 antialiased" x-data="{ drawerOpen: true }">
     {{> icons}}
     {{> navigation}}
-    <div class="flex flex-1 w-full max-w-7xl mx-auto gap-0 md:gap-6 px-0 md:px-6 lg:px-8 py-0 md:py-6 relative" aria-label="{{#str}}primary_navigation_wrapper, theme_default{{/str}}">
+    <div class="flex flex-1 w-full gap-0 md:gap-6 px-0 md:px-6 lg:px-8 py-0 md:py-6 relative" aria-label="{{#str}}primary_navigation_wrapper, theme_default{{/str}}">
         {{#is_authenticated}}
         {{> left_drawer}}
         {{/is_authenticated}}
