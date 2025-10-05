@@ -1,3 +1,4 @@
+{{! Wrapper identical to header.mustache for component-based lookup }}
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-gray-50">
 <head>
@@ -6,37 +7,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="{{meta_description}}" />
     <meta name="csrf-token" content="{{csrf_token}}" />
-
     <title>{{#page_title}}{{page_title}} · {{/page_title}}Admin Console</title>
-
-    <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        /* Optional: extend Tailwind config at runtime */
         tailwind.config = Object.assign({},{
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            50: '#f5f9ff',
-                            100: '#e0efff',
-                            500: '#1d4ed8',
-                            600: '#1e40af'
-                        }
-                    }
-                }
-            }
+            theme: { extend: { colors: { brand: { 50: '#f5f9ff',100:'#e0efff',500:'#1d4ed8',600:'#1e40af' } } } }
         });
     </script>
-
-    <!-- Base global styles (utility overrides / custom classes) -->
     <style>
         .app-shell-gradient { background: linear-gradient(135deg,#1e3a8a,#1d4ed8,#2563eb); }
         .focus-ring:focus { outline: 2px solid #2563eb; outline-offset: 2px; }
         [x-cloak] { display: none !important; }
     </style>
-
-    {{! Hook: place for additional <head> injections }}
     {{#extra_head}} {{{extra_head}}} {{/extra_head}}
 </head>
 <body class="h-full min-h-screen flex flex-col text-slate-800 antialiased" x-data="{ drawerOpen: true }">

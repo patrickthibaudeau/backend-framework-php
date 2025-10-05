@@ -363,11 +363,28 @@ class Output
         $arr = (array)$data;
         // Auto inject nav & drawer_items if absent
         if (!array_key_exists('nav', $arr)) {
-            try { $arr['nav'] = NavigationManager::getInstance()->getNav(); } catch (\Throwable $e) { $arr['nav'] = []; }
+            try { $arr['nav'] = \DevFramework\Core\Theme\NavigationManager::getInstance()->getNav(); } catch (\Throwable $e) { $arr['nav'] = []; }
         }
         if (!array_key_exists('drawer_items', $arr)) {
-            try { $arr['drawer_items'] = NavigationManager::getInstance()->getDrawer(); } catch (\Throwable $e) { $arr['drawer_items'] = []; }
+            try { $arr['drawer_items'] = \DevFramework\Core\Theme\NavigationManager::getInstance()->getDrawer(); } catch (\Throwable $e) { $arr['drawer_items'] = []; }
         }
+        $isAuth = false;
+        try {
+            if (class_exists('DevFramework\\Core\\Auth\\AuthenticationManager')) {
+                $am = \DevFramework\Core\Auth\AuthenticationManager::getInstance();
+                if ($am->isAuthenticated()) {
+                    $isAuth = true;
+                    if (!isset($arr['logout_url'])) { $arr['logout_url'] = '/login/logout.php'; }
+                    if (!isset($arr['user']) || empty($arr['user'])) {
+                        $u = $am->getCurrentUser();
+                        if ($u) { $arr['user'] = ['username' => $u->getUsername()]; }
+                    }
+                } else {
+                    if (!isset($arr['login_url'])) { $arr['login_url'] = '/login/login.php'; }
+                }
+            }
+        } catch (\Throwable $e) { /* ignore */ }
+        $arr['is_authenticated'] = $isAuth;
         return $this->renderFromTemplate('theme_header', $arr);
     }
 
