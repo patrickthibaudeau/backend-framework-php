@@ -97,7 +97,7 @@ $pageData = [
   'generated_at' => date('Y-m-d H:i:s',$nowTs),
   'summary' => [ 'success'=>$successCount, 'errors'=>$errorCount, 'skipped'=>$skippedCount, 'total'=>count($results) ],
   'rows' => $results,
-  'home_link' => '../index.php'
+  'home_link' => '/admin/index.php'
 ];
 
 echo $OUTPUT->header(['page_title'=>'Upgrade Utility','site_name'=>'Admin Console','user'=>['username'=>$currentUser->getUsername()]]);
