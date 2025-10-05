@@ -139,6 +139,83 @@ try {
 
     // --- End New Access Control Tables ---
 
+    // --- New RBAC Enhancement Tables (templates & audit log) ---
+    $templatesTable = $prefix . 'role_templates';
+    $stmt = $pdo->query("SHOW TABLES LIKE '{$templatesTable}'");
+    if (!$stmt->fetchColumn()) {
+        $sql = "CREATE TABLE `{$templatesTable}` (
+            id INT(11) NOT NULL AUTO_INCREMENT,
+            name VARCHAR(255) NOT NULL,
+            shortname VARCHAR(100) NOT NULL,
+            description TEXT NULL,
+            timecreated INT(11) NOT NULL DEFAULT 0,
+            timemodified INT(11) NOT NULL DEFAULT 0,
+            PRIMARY KEY (id),
+            UNIQUE KEY uk_template_shortname (shortname)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Role capability templates'";
+        $pdo->exec($sql);
+        error_log('Core Schema: Created role_templates table');
+    }
+
+    $templateCapsTable = $prefix . 'role_template_capabilities';
+    $stmt = $pdo->query("SHOW TABLES LIKE '{$templateCapsTable}'");
+    if (!$stmt->fetchColumn()) {
+        $sql = "CREATE TABLE `{$templateCapsTable}` (
+            id INT(11) NOT NULL AUTO_INCREMENT,
+            templateid INT(11) NOT NULL,
+            capability VARCHAR(191) NOT NULL,
+            permission VARCHAR(20) NOT NULL DEFAULT 'allow',
+            timecreated INT(11) NOT NULL DEFAULT 0,
+            timemodified INT(11) NOT NULL DEFAULT 0,
+            PRIMARY KEY (id),
+            UNIQUE KEY uk_template_cap (templateid, capability),
+            CONSTRAINT fk_template_caps_template FOREIGN KEY (templateid) REFERENCES `{$templatesTable}` (id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Template capability definitions'";
+        $pdo->exec($sql);
+        error_log('Core Schema: Created role_template_capabilities table');
+    }
+
+    $templateAssignTable = $prefix . 'role_template_assign';
+    $stmt = $pdo->query("SHOW TABLES LIKE '{$templateAssignTable}'");
+    if (!$stmt->fetchColumn()) {
+        $sql = "CREATE TABLE `{$templateAssignTable}` (
+            id INT(11) NOT NULL AUTO_INCREMENT,
+            roleid INT(11) NOT NULL,
+            templateid INT(11) NOT NULL,
+            timecreated INT(11) NOT NULL DEFAULT 0,
+            timemodified INT(11) NOT NULL DEFAULT 0,
+            PRIMARY KEY (id),
+            UNIQUE KEY uk_role_template (roleid, templateid),
+            CONSTRAINT fk_rta_role FOREIGN KEY (roleid) REFERENCES `{$rolesTable}` (id) ON DELETE CASCADE,
+            CONSTRAINT fk_rta_template FOREIGN KEY (templateid) REFERENCES `{$templatesTable}` (id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Assignment of templates to roles'";
+        $pdo->exec($sql);
+        error_log('Core Schema: Created role_template_assign table');
+    }
+
+    $auditLogTable = $prefix . 'role_audit_log';
+    $stmt = $pdo->query("SHOW TABLES LIKE '{$auditLogTable}'");
+    if (!$stmt->fetchColumn()) {
+        $sql = "CREATE TABLE `{$auditLogTable}` (
+            id INT(11) NOT NULL AUTO_INCREMENT,
+            actorid INT(11) NULL COMMENT 'User performing action',
+            userid INT(11) NULL COMMENT 'Target user (for assign/unassign)',
+            targetroleid INT(11) NULL COMMENT 'Target role id',
+            capability VARCHAR(191) NULL COMMENT 'Capability affected',
+            action VARCHAR(50) NOT NULL COMMENT 'Action type',
+            details TEXT NULL,
+            ip VARCHAR(45) NULL,
+            timecreated INT(11) NOT NULL DEFAULT 0,
+            PRIMARY KEY (id),
+            KEY idx_action (action),
+            KEY idx_actor (actorid),
+            KEY idx_targetrole (targetroleid)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Audit log for RBAC changes'";
+        $pdo->exec($sql);
+        error_log('Core Schema: Created role_audit_log table');
+    }
+    // --- End RBAC Enhancement Tables ---
+
     error_log("Core Schema: Installation completed successfully");
     return true;
 

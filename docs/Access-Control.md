@@ -106,3 +106,84 @@ Potential future enhancements:
 ---
 This system is intentionally minimal but robust; contributions welcome.
 
+---
+## Admin UI (New)
+A full administrative interface is available under `/admin/` (link appears automatically in navigation if the current user has `rbac:manage`).
+
+### Capabilities for Admin Features
+Added in `src/Core/Access/db/access.php`:
+- `rbac:manage` (write) – required for managing roles/templates/capabilities
+- `rbac:viewaudit` (read) – required to view the audit log
+- `rbac:importexport` (write) – required to import/export role profiles
+
+### Pages
+| Page | Purpose | Required Capability |
+|------|---------|---------------------|
+| /admin/index.php | Dashboard overview | rbac:manage |
+| /admin/roles.php | Create/edit roles, assign users, direct capability overrides & template assignment | rbac:manage |
+| /admin/templates.php | Create/edit templates (capability inheritance) | rbac:manage |
+| /admin/import_export.php | Batch export/import JSON role profiles | rbac:importexport |
+| /admin/audit.php | View RBAC audit trail | rbac:viewaudit |
+
+### Templates (Capability Inheritance)
+Templates act as reusable capability bundles. A role may have multiple templates; their capability decisions are applied in the order the templates were assigned (first-assigned = higher priority) before explicit role capability overrides. Explicit role capabilities always override inherited template capabilities unless the earlier decision is `prohibit`.
+
+Tables involved:
+- role_templates
+- role_template_capabilities
+- role_template_assign
+
+### Audit Logging
+All RBAC-changing actions (role creation, capability grant/revoke, template changes, assignments, imports, etc.) are logged to `role_audit_log` with:
+- actorid, userid (target), targetroleid, capability, action, details (JSON), ip, timestamp
+
+View via `/admin/audit.php` with filtering (action, actor, role, capability) and pagination.
+
+### Import / Export
+`/admin/import_export.php` provides:
+- Export: JSON file containing roles (optionally excluding Administrator) with capabilities & template references
+- Import modes:
+  - Merge: Adds new roles, updates existing, preserves unspecified capabilities/templates
+  - Replace: Clears and replaces capabilities/templates for roles in payload
+- Administrator (admin) role always enforced post-import (cannot remove admin user assignment)
+
+### Navigation Integration
+`src/Core/Theme/default/navigation.php` dynamically adds an “Admin” link to top nav & drawer only if the session user has `rbac:manage`.
+
+### Admin Role Enforcement
+Framework ensures the `admin` user always has the `admin` role:
+- During capability sync (bootstrap) via `ensureAdminUserHasAdminRole()`
+- Unassignment of admin user from Administrator role is prevented in the UI
+
+### Security Notes
+- CSRF tokens used on all modifying admin forms.
+- Capability gates at page level; granular feature separation via dedicated capabilities.
+- Audit log is append-only (no delete UI provided).
+
+### JSON Export Structure (Example)
+```json
+{
+  "exported_at": "2025-10-05T12:34:56Z",
+  "include_admin": true,
+  "roles": [
+    {
+      "shortname": "editor",
+      "name": "Editor",
+      "description": "Can edit content",
+      "sortorder": 50,
+      "capabilities": [ { "name": "auth:view", "permission": "allow" } ],
+      "templates": ["content_base"]
+    }
+  ]
+}
+```
+
+### Operational Checklist
+1. Add or modify capability definitions in any component `db/access.php`.
+2. Run bootstrap (or `php console.php roles sync` inside container) to sync.
+3. Use Admin UI to create templates and roles, then assign capabilities or inherit templates.
+4. Export role profiles before large changes; import as needed.
+5. Review `/admin/audit.php` for change history.
+
+---
+End of extended RBAC documentation.

@@ -108,6 +108,7 @@ class AccessManager
             }
 
             $this->seedDefaultAdministratorRole();
+            $this->ensureAdminUserHasAdminRole();
         } catch (\Throwable $e) {
             error_log('AccessManager: syncAllCapabilities fatal error: ' . $e->getMessage());
         }
@@ -156,6 +157,54 @@ class AccessManager
         }
     }
 
+    /** Ensure the user with username 'admin' always has the Administrator role */
+    private function ensureAdminUserHasAdminRole(): void
+    {
+        try {
+            $pdo = $this->db->getConnection();
+            $rolesTable = $this->db->addPrefix('roles');
+            $assignTable = $this->db->addPrefix('role_assignment');
+            $usersTable = $this->db->addPrefix('users');
+            $adminRoleId = $pdo->query("SELECT id FROM `{$rolesTable}` WHERE shortname='admin' LIMIT 1")->fetchColumn();
+            if (!$adminRoleId) { return; }
+            $adminUserId = $pdo->query("SELECT id FROM `{$usersTable}` WHERE username='admin' LIMIT 1")->fetchColumn();
+            if (!$adminUserId) { return; }
+            $stmt = $pdo->prepare("SELECT 1 FROM `{$assignTable}` WHERE userid=? AND roleid=? AND component IS NULL");
+            $stmt->execute([$adminUserId, $adminRoleId]);
+            if (!$stmt->fetchColumn()) {
+                $time = time();
+                $insert = $pdo->prepare("INSERT INTO `{$assignTable}` (userid, roleid, component, timecreated, timemodified) VALUES (?,?,?,?,?)");
+                $insert->execute([$adminUserId, $adminRoleId, null, $time, $time]);
+                $this->logAction($adminUserId, 'auto_assign_admin_role', ['roleid' => $adminRoleId]);
+            }
+        } catch (\Throwable $e) {
+            error_log('AccessManager: ensureAdminUserHasAdminRole failed: ' . $e->getMessage());
+        }
+    }
+
+    /** Log RBAC action into audit table */
+    public function logAction(?int $actorId, string $action, array $details = [], ?int $targetUserId = null, ?int $targetRoleId = null, ?string $capability = null): void
+    {
+        try {
+            $pdo = $this->db->getConnection();
+            $auditLogTable = $this->db->addPrefix('role_audit_log');
+            $sql = "INSERT INTO `{$auditLogTable}` (actorid, userid, targetroleid, capability, action, details, ip, timecreated) VALUES (?,?,?,?,?,?,?,?)";
+            $ip = $_SERVER['REMOTE_ADDR'] ?? null;
+            $pdo->prepare($sql)->execute([
+                $actorId,
+                $targetUserId,
+                $targetRoleId,
+                $capability,
+                $action,
+                json_encode($details, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),
+                $ip,
+                time()
+            ]);
+        } catch (\Throwable $e) {
+            error_log('AccessManager: logAction failed: ' . $e->getMessage());
+        }
+    }
+
     /**
      * Build evaluation cache for a user/component context (includes global + component-specific).
      * Component-specific assignments override global by ordering.
@@ -176,39 +225,83 @@ class AccessManager
         $stmt = $pdo->prepare($sql);
         $stmt->execute([':userid' => $userId, ':component' => $component]);
 
+        $roleOrder = [];
+        $roleCapabilities = [];
+        while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+            $rid = (int)$row['roleid'];
+            if (!in_array($rid, $roleOrder, true)) { $roleOrder[] = $rid; }
+            if ($row['capability']) {
+                $roleCapabilities[$rid][] = $row; // role-specific caps
+            }
+        }
+
+        // Load template capabilities for roles
+        $templateCapsMap = $this->loadTemplateCapabilitiesForRoles($roleOrder);
+
         $this->evaluationCache[$userId][$component] = [];
 
-        while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
-            $cap = $row['capability'];
-            if (!$cap) { continue; }
-            $perm = $row['permission'] ?: self::PERMISSION_NOTSET;
-
-            // Skip if not set
-            if ($perm === self::PERMISSION_NOTSET) { continue; }
-
-            // If already decided by a higher-priority role, skip unless current is PROHIBIT (strongest deny)
-            if (isset($this->evaluationCache[$userId][$component][$cap])) {
-                // Existing permission present
-                if ($this->evaluationCache[$userId][$component][$cap] === self::PERMISSION_PROHIBIT) {
-                    continue; // can't override prohibit
+        // Iterate roles in computed order
+        foreach ($roleOrder as $rid) {
+            // Process template capabilities first (inheritance)
+            if (isset($templateCapsMap[$rid])) {
+                foreach ($templateCapsMap[$rid] as $tc) {
+                    $this->applyCapabilityDecision($userId, $component, $tc['capability'], $tc['permission']);
                 }
-                if ($perm === self::PERMISSION_PROHIBIT) {
-                    $this->evaluationCache[$userId][$component][$cap] = $perm; // escalate to prohibit
-                }
-                // else keep original (higher-priority) decision
-                continue;
             }
-            $this->evaluationCache[$userId][$component][$cap] = $perm;
+            // Then role explicit capabilities (override templates)
+            if (isset($roleCapabilities[$rid])) {
+                foreach ($roleCapabilities[$rid] as $rc) {
+                    $this->applyCapabilityDecision($userId, $component, $rc['capability'], $rc['permission']);
+                }
+            }
         }
     }
 
+    /** Load template capabilities for a set of role IDs */
+    private function loadTemplateCapabilitiesForRoles(array $roleIds): array
+    {
+        if (empty($roleIds)) { return []; }
+        $pdo = $this->db->getConnection();
+        $templateAssign = $this->db->addPrefix('role_template_assign');
+        $templateCaps = $this->db->addPrefix('role_template_capabilities');
+        $placeholders = implode(',', array_fill(0, count($roleIds), '?'));
+        $sql = "SELECT rta.roleid, tc.capability, tc.permission, tc.templateid, rta.timecreated as assign_time
+                FROM {$templateAssign} rta
+                INNER JOIN {$templateCaps} tc ON tc.templateid = rta.templateid
+                WHERE rta.roleid IN ($placeholders)
+                ORDER BY rta.timecreated ASC, tc.templateid ASC";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($roleIds);
+        $map = [];
+        while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+            $map[$row['roleid']][] = $row; // keep ordering
+        }
+        return $map;
+    }
+
+    private function applyCapabilityDecision(int $userId, string $component, string $capability, string $permission): void
+    {
+        if ($permission === self::PERMISSION_NOTSET) { return; }
+        if (!isset($this->evaluationCache[$userId][$component][$capability])) {
+            $this->evaluationCache[$userId][$component][$capability] = $permission;
+            return;
+        }
+        $current = $this->evaluationCache[$userId][$component][$capability];
+        if ($current === self::PERMISSION_PROHIBIT) { return; }
+        if ($permission === self::PERMISSION_PROHIBIT) {
+            $this->evaluationCache[$userId][$component][$capability] = $permission; // escalate
+        }
+        // otherwise keep earlier (higher priority) decision
+    }
+
     /**
-     * Check if user has a capability.
-     * Algorithm:
-     * 1. Extract component from capability name (before ':').
-     * 2. Build evaluation cache (ordered: component-specific role assignments, then global) if not built.
-     * 3. Determine permission applying precedence: prohibit > allow > prevent > notset.
-     * 4. Return boolean (allow = true; others = false).
+     * Public API used by the global hasCapability() helper.
+     * Determines if a user has a capability (component:action) considering:
+     *  - Component-specific role assignments first (by sortorder ASC)
+     *  - Global role assignments next (by sortorder ASC)
+     *  - Template capabilities (in assignment order) before explicit role caps
+     *  - Prohibit strongest deny
+     *  - allow => true, everything else => false when evaluation ends
      */
     public function userHasCapability(string $capability, int $userId): bool
     {
@@ -217,22 +310,19 @@ class AccessManager
         if (count($parts) !== 2) { return false; }
         $component = $parts[0];
 
-        // Permission result cache
+        // Cached final decision
         if (isset($this->permissionCache[$userId][$component][$capability])) {
             return $this->permissionCache[$userId][$component][$capability];
         }
 
+        // Build evaluation cache for (user, component) if needed
         if (!isset($this->evaluationCache[$userId][$component])) {
             $this->buildEvaluationCache($userId, $component);
         }
 
         $perm = $this->evaluationCache[$userId][$component][$capability] ?? self::PERMISSION_NOTSET;
-        $result = false;
-        if ($perm === self::PERMISSION_PROHIBIT) { $result = false; }
-        elseif ($perm === self::PERMISSION_ALLOW) { $result = true; }
-        elseif ($perm === self::PERMISSION_PREVENT) { $result = false; }
-        else { $result = false; }
-
+        $result = ($perm === self::PERMISSION_ALLOW); // only allow == true
+        // All other states (prevent, prohibit, notset) => false
         $this->permissionCache[$userId][$component][$capability] = $result;
         return $result;
     }
