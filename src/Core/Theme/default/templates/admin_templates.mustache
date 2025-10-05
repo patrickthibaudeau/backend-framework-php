@@ -1,0 +1,72 @@
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold">Role Templates</h1>
+  <a href="index.php" class="text-blue-600 hover:underline">← Admin Home</a>
+</div>
+{{#flashes}}
+  <div class="mb-4 p-3 rounded {{css_class}}">{{msg}}</div>
+{{/flashes}}
+<div class="grid md:grid-cols-{{#editing}}3{{/editing}}{{^editing}}2{{/editing}} gap-6">
+  <div class="bg-white p-4 rounded shadow">
+    <h2 class="font-semibold mb-3">Create Template</h2>
+    <form method="post" class="space-y-3">
+      <input type="hidden" name="action" value="create_template" />
+      <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
+      <div><label class="block text-sm">Shortname</label><input name="shortname" class="w-full border px-2 py-1 rounded" required /></div>
+      <div><label class="block text-sm">Name</label><input name="name" class="w-full border px-2 py-1 rounded" required /></div>
+      <div><label class="block text-sm">Description</label><textarea name="description" class="w-full border px-2 py-1 rounded" rows="3"></textarea></div>
+      <button class="bg-blue-600 text-white px-4 py-2 rounded">Create</button>
+    </form>
+  </div>
+  <div class="bg-white p-4 rounded shadow max-h-[70vh] overflow-auto">
+    <h2 class="font-semibold mb-3">Templates</h2>
+    <table class="w-full text-sm">
+      <thead><tr class="text-left"><th>Name</th><th>Short</th><th></th></tr></thead>
+      <tbody>
+      {{#templates}}
+        <tr class="border-t">
+          <td class="py-1 font-medium">{{name}}</td>
+          <td>{{shortname}}</td>
+          <td class="text-right space-x-2">
+            <a class="text-blue-600 hover:underline" href="templates.php?edit={{id}}">Edit</a>
+            <form method="post" style="display:inline" onsubmit="return confirm('Delete template?');">
+              <input type="hidden" name="action" value="delete_template" />
+              <input type="hidden" name="csrf_token" value="{{../csrf_token}}" />
+              <input type="hidden" name="id" value="{{id}}" />
+              <button name="template" value="{{id}}" class="text-red-600 text-xs">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {{/templates}}
+      </tbody>
+    </table>
+  </div>
+  {{#editing}}
+  <div class="bg-white p-4 rounded shadow max-h-[80vh] overflow-auto">
+    <h2 class="font-semibold mb-3">Edit Template: {{template.name}}</h2>
+    <form method="post">
+      <input type="hidden" name="action" value="update_template_caps" />
+      <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
+      <table class="w-full text-xs">
+        <thead><tr><th class="text-left">Capability</th><th>Type</th><th>Perm</th></tr></thead>
+        <tbody>
+        {{#capabilities}}
+          <tr class="border-t">
+            <td class="py-1 pr-2">{{name}}</td>
+            <td class="py-1 pr-2 text-gray-500">{{type}}</td>
+            <td class="py-1">
+              <select name="{{field}}" class="border rounded px-1 py-0.5">
+                {{#options}}
+                  <option value="{{value}}" {{#selected}}selected{{/selected}}>{{label}}</option>
+                {{/options}}
+              </select>
+            </td>
+          </tr>
+        {{/capabilities}}
+        </tbody>
+      </table>
+      <button class="mt-3 bg-green-600 text-white px-4 py-2 rounded">Save Template</button>
+    </form>
+  </div>
+  {{/editing}}
+</div>
+

@@ -1,0 +1,134 @@
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold">Roles</h1>
+  <a href="index.php" class="text-blue-600 hover:underline">← Admin Home</a>
+</div>
+{{#flashes}}
+  <div class="mb-4 p-3 rounded {{css_class}}">{{msg}}</div>
+{{/flashes}}
+<div class="grid md:grid-cols-{{#editing}}3{{/editing}}{{^editing}}2{{/editing}} gap-6">
+  <div class="md:col-span-1 bg-white p-4 rounded shadow">
+    <h2 class="font-semibold mb-3">Create Role</h2>
+    <form method="post" class="space-y-3">
+      <input type="hidden" name="action" value="create_role" />
+      <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
+      <div>
+        <label class="block text-sm">Shortname</label>
+        <input name="shortname" class="w-full border px-2 py-1 rounded" required />
+      </div>
+      <div>
+        <label class="block text-sm">Name</label>
+        <input name="name" class="w-full border px-2 py-1 rounded" required />
+      </div>
+      <div>
+        <label class="block text-sm">Sort Order</label>
+        <input name="sortorder" type="number" class="w-full border px-2 py-1 rounded" value="100" />
+      </div>
+      <div>
+        <label class="block text-sm">Description</label>
+        <textarea name="description" class="w-full border px-2 py-1 rounded" rows="3"></textarea>
+      </div>
+      <button class="bg-blue-600 text-white px-4 py-2 rounded">Create</button>
+    </form>
+  </div>
+  <div class="md:col-span-1 bg-white p-4 rounded shadow max-h-[70vh] overflow-auto">
+    <h2 class="font-semibold mb-3">Existing Roles</h2>
+    <table class="w-full text-sm">
+      <thead><tr class="text-left"><th class="py-1">Name</th><th>Short</th><th>Order</th><th></th></tr></thead>
+      <tbody>
+      {{#roles}}
+        <tr class="border-t">
+          <td class="py-1 font-medium">{{name}}</td>
+          <td>{{shortname}}</td>
+          <td>{{sortorder}}</td>
+          <td><a class="text-blue-600 hover:underline" href="roles.php?edit={{id}}">Edit</a></td>
+        </tr>
+      {{/roles}}
+      </tbody>
+    </table>
+  </div>
+  {{#editing}}
+  <div class="md:col-span-1 bg-white p-4 rounded shadow overflow-auto max-h-[80vh]">
+    <h2 class="font-semibold mb-3">Edit Role: {{role.name}}</h2>
+    <form method="post" class="mb-6 space-y-3">
+      <input type="hidden" name="action" value="update_role_meta" />
+      <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
+      <div>
+        <label class="block text-xs font-medium">Name</label>
+        <input name="name" value="{{role.name}}" class="w-full border rounded px-2 py-1 text-sm" required />
+      </div>
+      <div>
+        <label class="block text-xs font-medium">Description</label>
+        <textarea name="description" rows="2" class="w-full border rounded px-2 py-1 text-sm">{{role.description}}</textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-medium">Sort Order</label>
+        <input type="number" name="sortorder" value="{{role.sortorder}}" class="w-full border rounded px-2 py-1 text-sm" />
+      </div>
+      <button class="bg-indigo-600 text-white px-4 py-2 rounded text-sm">Update Role Info</button>
+    </form>
+    <form method="post">
+      <input type="hidden" name="action" value="update_role_caps" />
+      <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
+      <div class="mb-4">
+        <h3 class="font-semibold mb-2">Templates</h3>
+        {{#templates}}
+          <label class="flex items-center space-x-2 text-sm mb-1">
+            <input type="checkbox" name="templates[]" value="{{id}}" {{#checked}}checked{{/checked}} />
+            <span>{{shortname}}</span>
+          </label>
+        {{/templates}}
+        {{^templates}}<p class="text-xs text-gray-500">No templates defined.</p>{{/templates}}
+      </div>
+      <div class="mb-4">
+        <h3 class="font-semibold mb-2">Capabilities</h3>
+        <table class="w-full text-xs">
+          <thead><tr><th class="text-left">Capability</th><th>Type</th><th>Permission</th></tr></thead>
+          <tbody>
+          {{#capabilities}}
+            <tr class="border-t">
+              <td class="py-1 pr-2">{{name}}</td>
+              <td class="py-1 pr-2 text-gray-500">{{type}}</td>
+              <td class="py-1">
+                <select name="{{field}}" class="border rounded px-1 py-0.5">
+                  {{#options}}
+                    <option value="{{value}}" {{#selected}}selected{{/selected}}>{{value}}</option>
+                  {{/options}}
+                </select>
+              </td>
+            </tr>
+          {{/capabilities}}
+          </tbody>
+        </table>
+      </div>
+      <button class="bg-green-600 text-white px-4 py-2 rounded">Save Changes</button>
+    </form>
+    <div class="mt-6">
+      <h3 class="font-semibold mb-2">Assigned Users</h3>
+      <ul class="text-sm mb-3 space-y-1">
+        {{#user_assignments}}
+          <li class="flex items-center justify-between bg-gray-50 px-2 py-1 rounded">
+            <span>{{username}}</span>
+            <form method="post" onsubmit="return confirm('Unassign user?');">
+              <input type="hidden" name="action" value="unassign_user" />
+              <input type="hidden" name="userid" value="{{id}}" />
+              <input type="hidden" name="csrf_token" value="{{../csrf_token}}" />
+              <button class="text-red-600 text-xs">Remove</button>
+            </form>
+          </li>
+        {{/user_assignments}}
+        {{^user_assignments}}<li class="text-xs text-gray-500">No users assigned.</li>{{/user_assignments}}
+      </ul>
+      <form method="post" class="flex space-x-2 items-end">
+        <input type="hidden" name="action" value="assign_user" />
+        <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
+        <div>
+          <label class="block text-xs">User ID</label>
+          <input name="userid" type="number" class="border rounded px-2 py-1 w-28" />
+        </div>
+        <button class="bg-blue-600 text-white px-3 py-1 rounded text-sm">Assign</button>
+      </form>
+    </div>
+  </div>
+  {{/editing}}
+</div>
+

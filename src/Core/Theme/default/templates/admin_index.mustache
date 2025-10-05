@@ -1,0 +1,28 @@
+<div class="space-y-8">
+  {{#flashes}}
+    <div class="p-3 rounded {{css_class}} text-sm">{{msg}}</div>
+  {{/flashes}}
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="bg-white shadow p-4 rounded"><div class="text-xs uppercase tracking-wide text-slate-500">Roles</div><div class="text-2xl font-semibold">{{counts.roles}}</div></div>
+    <div class="bg-white shadow p-4 rounded"><div class="text-xs uppercase tracking-wide text-slate-500">Capabilities</div><div class="text-2xl font-semibold">{{counts.caps}}</div></div>
+    <div class="bg-white shadow p-4 rounded"><div class="text-xs uppercase tracking-wide text-slate-500">Users</div><div class="text-2xl font-semibold">{{counts.users}}</div></div>
+    <div class="bg-white shadow p-4 rounded"><div class="text-xs uppercase tracking-wide text-slate-500">Templates</div><div class="text-2xl font-semibold">{{counts.templates}}</div></div>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-white p-6 rounded shadow">
+      <h2 class="font-semibold text-lg mb-4">Role & Capability Management</h2>
+      <ul class="space-y-2 list-disc ml-5 text-blue-700">
+        <li><a href="roles.php" class="hover:underline">Manage Roles</a></li>
+        <li><a href="templates.php" class="hover:underline">Manage Templates (Inheritance)</a></li>
+        <li><a href="import_export.php" class="hover:underline">Import / Export Role Profiles</a></li>
+        <li><a href="audit.php" class="hover:underline">Audit Log</a></li>
+      </ul>
+    </div>
+    <div class="bg-white p-6 rounded shadow">
+      <h2 class="font-semibold text-lg mb-4">Quick Info</h2>
+      <p class="text-sm leading-relaxed">This interface lets you create roles, assign capabilities or inherited templates, batch import/export role definitions, and review a complete audit trail of permission changes.</p>
+      <p class="text-sm mt-2">Administrator account is auto-assigned the top-level admin role.</p>
+    </div>
+  </div>
+</div>
+

@@ -41,7 +41,6 @@ if (!function_exists('admin_csrf_validate')) {
 
 use DevFramework\Core\Access\AccessManager;
 $AM = AccessManager::getInstance();
-$db = db();
 
 function admin_flash(string $type, string $msg): void {
     if (session_status() !== PHP_SESSION_ACTIVE) { @session_start(); }
@@ -53,4 +52,3 @@ function admin_get_flashes(): array {
     unset($_SESSION['admin_flash']);
     return $f;
 }
-

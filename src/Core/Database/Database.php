@@ -354,6 +354,15 @@ class Database
     }
 
     /**
+     * Backward-compatible alias (singular) for count_records().
+     * Some legacy code may call $DB->count_record().
+     */
+    public function count_record(string $table, array $conditions = []): int
+    {
+        return $this->count_records($table, $conditions);
+    }
+
+    /**
      * Check if record exists
      */
     public function record_exists(string $table, array $conditions): bool

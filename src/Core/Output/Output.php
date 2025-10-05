@@ -299,6 +299,8 @@ class Output
         $candidateNames[] = $projectRoot . '/modules/' . $pascal . '/templates/' . $templateSlug . '.mustache';
         // Module lowercase fallback
         $candidateNames[] = $projectRoot . '/modules/' . strtolower($componentSlug) . '/templates/' . $templateSlug . '.mustache';
+        // ADDITION: Allow placing arbitrary component templates directly in the active theme default template directory
+        $candidateNames[] = $projectRoot . '/src/Core/Theme/default/templates/' . $componentSlug . '_' . $templateSlug . '.mustache';
 
         // Registered extra roots (theme overrides, etc.)
         foreach ($this->extraRoots as $r) {
