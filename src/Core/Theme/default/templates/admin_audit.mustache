@@ -1,45 +1,45 @@
 <div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-bold">RBAC Audit Log</h1>
-  <a href="{{home_link}}" class="text-blue-600 hover:underline">← Admin Home</a>
+  <h1 class="text-2xl font-bold">{{#str}}admin_audit_log, theme_default{{/str}}</h1>
+  <a href="{{home_link}}" class="text-blue-600 hover:underline">{{#str}}back_admin_home, theme_default{{/str}}</a>
 </div>
 <form method="get" class="bg-white p-4 rounded shadow grid md:grid-cols-6 gap-4 text-sm mb-6">
   <div>
-    <label class="block mb-1 text-xs font-medium">Action</label>
-    <input name="action" value="{{filters.action}}" class="w-full border rounded px-2 py-1" placeholder="create_role" />
+    <label class="block mb-1 text-xs font-medium">{{#str}}action, theme_default{{/str}}</label>
+    <input name="action" value="{{filters.action}}" class="w-full border rounded px-2 py-1" placeholder="{{#str}}placeholder_action_example, theme_default{{/str}}" />
   </div>
   <div>
-    <label class="block mb-1 text-xs font-medium">Actor (id/username)</label>
-    <input name="actor" value="{{filters.actor}}" class="w-full border rounded px-2 py-1" placeholder="admin" />
+    <label class="block mb-1 text-xs font-medium">{{#str}}actor_id_username, theme_default{{/str}}</label>
+    <input name="actor" value="{{filters.actor}}" class="w-full border rounded px-2 py-1" placeholder="{{#str}}placeholder_actor_example, theme_default{{/str}}" />
   </div>
   <div>
-    <label class="block mb-1 text-xs font-medium">Role (id/shortname)</label>
-    <input name="role" value="{{filters.role}}" class="w-full border rounded px-2 py-1" placeholder="editor" />
+    <label class="block mb-1 text-xs font-medium">{{#str}}role_id_shortname, theme_default{{/str}}</label>
+    <input name="role" value="{{filters.role}}" class="w-full border rounded px-2 py-1" placeholder="{{#str}}placeholder_role_example, theme_default{{/str}}" />
   </div>
   <div>
-    <label class="block mb-1 text-xs font-medium">Capability</label>
-    <input name="cap" value="{{filters.cap}}" class="w-full border rounded px-2 py-1" placeholder="auth:add" />
+    <label class="block mb-1 text-xs font-medium">{{#str}}capability, theme_default{{/str}}</label>
+    <input name="cap" value="{{filters.cap}}" class="w-full border rounded px-2 py-1" placeholder="{{#str}}placeholder_capability_example, theme_default{{/str}}" />
   </div>
   <div>
-    <label class="block mb-1 text-xs font-medium">Page</label>
+    <label class="block mb-1 text-xs font-medium">{{#str}}page, theme_default{{/str}}</label>
     <input name="page" type="number" value="{{pagination.page}}" class="w-full border rounded px-2 py-1" />
   </div>
   <div class="flex items-end">
-    <button class="bg-blue-600 text-white px-4 py-2 rounded w-full">Filter</button>
+    <button class="bg-blue-600 text-white px-4 py-2 rounded w-full">{{#str}}filter, theme_default{{/str}}</button>
   </div>
 </form>
 <div class="bg-white rounded shadow overflow-auto mb-6">
   <table class="min-w-full text-xs">
     <thead class="bg-gray-50">
       <tr>
-        <th class="px-3 py-2 text-left">ID</th>
-        <th class="px-3 py-2 text-left">Action</th>
-        <th class="px-3 py-2 text-left">Actor</th>
-        <th class="px-3 py-2 text-left">Target User</th>
-        <th class="px-3 py-2 text-left">Role</th>
-        <th class="px-3 py-2 text-left">Capability</th>
-        <th class="px-3 py-2 text-left">Details</th>
-        <th class="px-3 py-2 text-left">IP</th>
-        <th class="px-3 py-2 text-left">Time</th>
+        <th class="px-3 py-2 text-left">{{#str}}id, theme_default{{/str}}</th>
+        <th class="px-3 py-2 text-left">{{#str}}action, theme_default{{/str}}</th>
+        <th class="px-3 py-2 text-left">{{#str}}actor_id_username, theme_default{{/str}}</th>
+        <th class="px-3 py-2 text-left">{{#str}}target_user, theme_default{{/str}}</th>
+        <th class="px-3 py-2 text-left">{{#str}}role_id_shortname, theme_default{{/str}}</th>
+        <th class="px-3 py-2 text-left">{{#str}}capability, theme_default{{/str}}</th>
+        <th class="px-3 py-2 text-left">{{#str}}details, theme_default{{/str}}</th>
+        <th class="px-3 py-2 text-left">{{#str}}ip, theme_default{{/str}}</th>
+        <th class="px-3 py-2 text-left">{{#str}}time, theme_default{{/str}}</th>
       </tr>
     </thead>
     <tbody>
@@ -57,13 +57,13 @@
       </tr>
     {{/rows}}
     {{^rows}}
-      <tr><td colspan="9" class="px-3 py-4 text-center text-gray-500">No audit entries found.</td></tr>
+      <tr><td colspan="9" class="px-3 py-4 text-center text-gray-500">{{#str}}no_audit_entries, theme_default{{/str}}</td></tr>
     {{/rows}}
     </tbody>
   </table>
 </div>
 <div class="flex justify-between items-center text-xs">
-  <div>Total: {{pagination.total}} entries</div>
+  <div>{{#str}}total_label, theme_default{{/str}} {{pagination.total}} {{#str}}entries_label, theme_default{{/str}}</div>
   <div class="space-x-1">
     {{#pagination.pages}}
       <a class="px-2 py-1 rounded {{#current}}bg-blue-600 text-white{{/current}}{{^current}}bg-white border text-blue-700{{/current}}" href="?{{query}}">{{num}}</a>

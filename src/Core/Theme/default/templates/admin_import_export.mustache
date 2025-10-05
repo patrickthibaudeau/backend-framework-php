@@ -1,47 +1,47 @@
 <div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-bold">Import / Export Role Profiles</h1>
-  <a href="{{home_link}}" class="text-blue-600 hover:underline">← Admin Home</a>
+  <h1 class="text-2xl font-bold">{{#str}}admin_import_export_title, theme_default{{/str}}</h1>
+  <a href="{{home_link}}" class="text-blue-600 hover:underline">{{#str}}back_admin_home, theme_default{{/str}}</a>
 </div>
 {{#flashes}}
   <div class="mb-4 p-3 rounded {{css_class}}">{{msg}}</div>
 {{/flashes}}
 <div class="grid md:grid-cols-2 gap-8">
   <div class="bg-white p-6 rounded shadow">
-    <h2 class="font-semibold mb-4">Export Roles</h2>
+    <h2 class="font-semibold mb-4">{{#str}}export_roles_heading, theme_default{{/str}}</h2>
     <form method="post">
       <input type="hidden" name="action" value="export" />
       <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
       <label class="flex items-center space-x-2 mb-4 text-sm">
         <input type="checkbox" name="include_admin" checked />
-        <span>Include Administrator role</span>
+        <span>{{#str}}include_admin_role_label, theme_default{{/str}}</span>
       </label>
-      <button class="bg-blue-600 text-white px-4 py-2 rounded">Download Export JSON</button>
+      <button class="bg-blue-600 text-white px-4 py-2 rounded">{{#str}}download_export_json_button, theme_default{{/str}}</button>
     </form>
-    <p class="text-xs text-gray-500 mt-4">Exports role definitions with capabilities and template inheritance references.</p>
+    <p class="text-xs text-gray-500 mt-4">{{#str}}export_roles_help, theme_default{{/str}}</p>
   </div>
   <div class="bg-white p-6 rounded shadow">
-    <h2 class="font-semibold mb-4">Import Roles</h2>
+    <h2 class="font-semibold mb-4">{{#str}}import_roles_heading, theme_default{{/str}}</h2>
     <form method="post" enctype="multipart/form-data" class="space-y-4">
       <input type="hidden" name="action" value="import" />
       <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
       <div>
-        <label class="block text-sm font-medium mb-1">JSON File</label>
+        <label class="block text-sm font-medium mb-1">{{#str}}json_file_label, theme_default{{/str}}</label>
         <input type="file" name="import_file" accept="application/json" class="text-sm" />
-        <p class="text-xs text-gray-400 mt-1">Or paste JSON below.</p>
+        <p class="text-xs text-gray-400 mt-1">{{#str}}or_paste_json_below, theme_default{{/str}}</p>
       </div>
       <div>
-        <label class="block text-sm font-medium mb-1">JSON Content</label>
+        <label class="block text-sm font-medium mb-1">{{#str}}json_content_label, theme_default{{/str}}</label>
         <textarea name="import_json" rows="8" class="w-full border rounded px-2 py-1 text-xs font-mono" placeholder="{ ... }"></textarea>
       </div>
       <div>
-        <label class="block text-sm font-medium mb-1">Mode</label>
+        <label class="block text-sm font-medium mb-1">{{#str}}mode_label, theme_default{{/str}}</label>
         <select name="mode" class="border rounded px-2 py-1 text-sm">
-          <option value="merge">Merge (update / add only)</option>
-          <option value="replace">Replace (overwrite caps & templates per role)</option>
+          <option value="merge">{{#str}}mode_merge, theme_default{{/str}}</option>
+          <option value="replace">{{#str}}mode_replace, theme_default{{/str}}</option>
         </select>
       </div>
-      <button class="bg-green-600 text-white px-4 py-2 rounded">Import</button>
+      <button class="bg-green-600 text-white px-4 py-2 rounded">{{#str}}import_button, theme_default{{/str}}</button>
     </form>
-    <p class="text-xs text-gray-500 mt-4">Import respects existing roles by shortname. In replace mode, previous capabilities and template assignments for listed roles are cleared first (except admin role always remains assigned to admin user).</p>
+    <p class="text-xs text-gray-500 mt-4">{{#str}}import_roles_help, theme_default{{/str}}</p>
   </div>
 </div>

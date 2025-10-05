@@ -1,38 +1,38 @@
 <div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-bold">Role Templates</h1>
-  <a href="{{home_link}}" class="text-blue-600 hover:underline">← Admin Home</a>
+  <h1 class="text-2xl font-bold">{{#str}}role_templates_title, theme_default{{/str}}</h1>
+  <a href="{{home_link}}" class="text-blue-600 hover:underline">{{#str}}back_admin_home, theme_default{{/str}}</a>
 </div>
 {{#flashes}}
   <div class="mb-4 p-3 rounded {{css_class}}">{{msg}}</div>
 {{/flashes}}
 <div class="grid md:grid-cols-{{#editing}}3{{/editing}}{{^editing}}2{{/editing}} gap-6">
   <div class="bg-white p-4 rounded shadow">
-    <h2 class="font-semibold mb-3">Create Template</h2>
+    <h2 class="font-semibold mb-3">{{#str}}create_template_heading, theme_default{{/str}}</h2>
     <form method="post" class="space-y-3">
       <input type="hidden" name="action" value="create_template" />
       <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
-      <div><label class="block text-sm">Shortname</label><input name="shortname" class="w-full border px-2 py-1 rounded" required /></div>
-      <div><label class="block text-sm">Name</label><input name="name" class="w-full border px-2 py-1 rounded" required /></div>
-      <div><label class="block text-sm">Description</label><textarea name="description" class="w-full border px-2 py-1 rounded" rows="3"></textarea></div>
-      <button class="bg-blue-600 text-white px-4 py-2 rounded">Create</button>
+      <div><label class="block text-sm">{{#str}}field_shortname, theme_default{{/str}}</label><input name="shortname" class="w-full border px-2 py-1 rounded" required /></div>
+      <div><label class="block text-sm">{{#str}}field_name, theme_default{{/str}}</label><input name="name" class="w-full border px-2 py-1 rounded" required /></div>
+      <div><label class="block text-sm">{{#str}}field_description, theme_default{{/str}}</label><textarea name="description" class="w-full border px-2 py-1 rounded" rows="3"></textarea></div>
+      <button class="bg-blue-600 text-white px-4 py-2 rounded">{{#str}}create_button, theme_default{{/str}}</button>
     </form>
   </div>
   <div class="bg-white p-4 rounded shadow max-h-[70vh] overflow-auto">
-    <h2 class="font-semibold mb-3">Templates</h2>
+    <h2 class="font-semibold mb-3">{{#str}}templates_list_heading, theme_default{{/str}}</h2>
     <table class="w-full text-sm">
-      <thead><tr class="text-left"><th>Name</th><th>Short</th><th></th></tr></thead>
+      <thead><tr class="text-left"><th>{{#str}}field_name, theme_default{{/str}}</th><th>{{#str}}field_short, theme_default{{/str}}</th><th></th></tr></thead>
       <tbody>
       {{#templates}}
         <tr class="border-t">
           <td class="py-1 font-medium">{{name}}</td>
           <td>{{shortname}}</td>
           <td class="text-right space-x-2">
-            <a class="text-blue-600 hover:underline" href="templates.php?edit={{id}}">Edit</a>
-            <form method="post" style="display:inline" onsubmit="return confirm('Delete template?');">
+            <a class="text-blue-600 hover:underline" href="templates.php?edit={{id}}">{{#str}}edit_link, theme_default{{/str}}</a>
+            <form method="post" style="display:inline" onsubmit="return confirm('{{#str}}confirm_delete_template, theme_default{{/str}}');">
               <input type="hidden" name="action" value="delete_template" />
               <input type="hidden" name="csrf_token" value="{{../csrf_token}}" />
               <input type="hidden" name="id" value="{{id}}" />
-              <button name="template" value="{{id}}" class="text-red-600 text-xs">Delete</button>
+              <button name="template" value="{{id}}" class="text-red-600 text-xs">{{#str}}delete_button, theme_default{{/str}}</button>
             </form>
           </td>
         </tr>
@@ -42,12 +42,12 @@
   </div>
   {{#editing}}
   <div class="bg-white p-4 rounded shadow max-h-[80vh] overflow-auto">
-    <h2 class="font-semibold mb-3">Edit Template: {{template.name}}</h2>
+    <h2 class="font-semibold mb-3">{{#str}}edit_template_heading, theme_default{{/str}} {{template.name}}</h2>
     <form method="post">
       <input type="hidden" name="action" value="update_template_caps" />
       <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
       <table class="w-full text-xs">
-        <thead><tr><th class="text-left">Capability</th><th>Type</th><th>Perm</th></tr></thead>
+        <thead><tr><th class="text-left">{{#str}}capability_label, theme_default{{/str}}</th><th>{{#str}}type_label, theme_default{{/str}}</th><th>{{#str}}permission_short_label, theme_default{{/str}}</th></tr></thead>
         <tbody>
         {{#capabilities}}
           <tr class="border-t">
@@ -64,7 +64,7 @@
         {{/capabilities}}
         </tbody>
       </table>
-      <button class="mt-3 bg-green-600 text-white px-4 py-2 rounded">Save Template</button>
+      <button class="mt-3 bg-green-600 text-white px-4 py-2 rounded">{{#str}}save_template_button, theme_default{{/str}}</button>
     </form>
   </div>
   {{/editing}}

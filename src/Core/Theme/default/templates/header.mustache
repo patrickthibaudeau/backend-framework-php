@@ -7,8 +7,7 @@
     <meta name="description" content="{{meta_description}}" />
     <meta name="csrf-token" content="{{csrf_token}}" />
 
-    <title>{{#page_title}}{{page_title}} · {{/page_title}}Admin Console</title>
-
+    <title>{{#page_title}}{{page_title}} · {{/page_title}}{{#str}}admin_console_title, theme_default{{/str}}</title>
     <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -28,21 +27,17 @@
             }
         });
     </script>
-
-    <!-- Base global styles (utility overrides / custom classes) -->
     <style>
         .app-shell-gradient { background: linear-gradient(135deg,#1e3a8a,#1d4ed8,#2563eb); }
         .focus-ring:focus { outline: 2px solid #2563eb; outline-offset: 2px; }
         [x-cloak] { display: none !important; }
     </style>
-
-    {{! Hook: place for additional <head> injections }}
     {{#extra_head}} {{{extra_head}}} {{/extra_head}}
 </head>
 <body class="h-full min-h-screen flex flex-col text-slate-800 antialiased" x-data="{ drawerOpen: true }">
     {{> icons}}
     {{> navigation}}
-    <div class="flex flex-1 w-full max-w-7xl mx-auto gap-0 md:gap-6 px-0 md:px-6 lg:px-8 py-0 md:py-6 relative">
+    <div class="flex flex-1 w-full max-w-7xl mx-auto gap-0 md:gap-6 px-0 md:px-6 lg:px-8 py-0 md:py-6 relative" aria-label="{{#str}}primary_navigation_wrapper, theme_default{{/str}}">
         {{#is_authenticated}}
         {{> left_drawer}}
         {{/is_authenticated}}

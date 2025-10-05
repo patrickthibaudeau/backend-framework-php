@@ -1,46 +1,46 @@
 <div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-bold">Roles</h1>
-  <a href="{{home_link}}" class="text-blue-600 hover:underline">← Admin Home</a>
+  <h1 class="text-2xl font-bold">{{#str}}roles_title, theme_default{{/str}}</h1>
+  <a href="{{home_link}}" class="text-blue-600 hover:underline">{{#str}}back_admin_home, theme_default{{/str}}</a>
 </div>
 {{#flashes}}
   <div class="mb-4 p-3 rounded {{css_class}}">{{msg}}</div>
 {{/flashes}}
 <div class="grid md:grid-cols-{{#editing}}3{{/editing}}{{^editing}}2{{/editing}} gap-6">
   <div class="md:col-span-1 bg-white p-4 rounded shadow">
-    <h2 class="font-semibold mb-3">Create Role</h2>
+    <h2 class="font-semibold mb-3">{{#str}}create_role_heading, theme_default{{/str}}</h2>
     <form method="post" class="space-y-3">
       <input type="hidden" name="action" value="create_role" />
       <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
       <div>
-        <label class="block text-sm">Shortname</label>
+        <label class="block text-sm">{{#str}}field_shortname, theme_default{{/str}}</label>
         <input name="shortname" class="w-full border px-2 py-1 rounded" required />
       </div>
       <div>
-        <label class="block text-sm">Name</label>
+        <label class="block text-sm">{{#str}}field_name, theme_default{{/str}}</label>
         <input name="name" class="w-full border px-2 py-1 rounded" required />
       </div>
       <div>
-        <label class="block text-sm">Sort Order</label>
+        <label class="block text-sm">{{#str}}field_sortorder, theme_default{{/str}}</label>
         <input name="sortorder" type="number" class="w-full border px-2 py-1 rounded" value="100" />
       </div>
       <div>
-        <label class="block text-sm">Description</label>
+        <label class="block text-sm">{{#str}}field_description, theme_default{{/str}}</label>
         <textarea name="description" class="w-full border px-2 py-1 rounded" rows="3"></textarea>
       </div>
-      <button class="bg-blue-600 text-white px-4 py-2 rounded">Create</button>
+      <button class="bg-blue-600 text-white px-4 py-2 rounded">{{#str}}create_button, theme_default{{/str}}</button>
     </form>
   </div>
   <div class="md:col-span-1 bg-white p-4 rounded shadow max-h-[70vh] overflow-auto">
-    <h2 class="font-semibold mb-3">Existing Roles</h2>
+    <h2 class="font-semibold mb-3">{{#str}}existing_roles_heading, theme_default{{/str}}</h2>
     <table class="w-full text-sm">
-      <thead><tr class="text-left"><th class="py-1">Name</th><th>Short</th><th>Order</th><th></th></tr></thead>
+      <thead><tr class="text-left"><th class="py-1">{{#str}}field_name, theme_default{{/str}}</th><th>{{#str}}field_short, theme_default{{/str}}</th><th>{{#str}}field_order, theme_default{{/str}}</th><th></th></tr></thead>
       <tbody>
       {{#roles}}
         <tr class="border-t">
           <td class="py-1 font-medium">{{name}}</td>
           <td>{{shortname}}</td>
           <td>{{sortorder}}</td>
-          <td><a class="text-blue-600 hover:underline" href="roles.php?edit={{id}}">Edit</a></td>
+          <td><a class="text-blue-600 hover:underline" href="roles.php?edit={{id}}">{{#str}}edit_link, theme_default{{/str}}</a></td>
         </tr>
       {{/roles}}
       </tbody>
@@ -48,41 +48,41 @@
   </div>
   {{#editing}}
   <div class="md:col-span-1 bg-white p-4 rounded shadow overflow-auto max-h-[80vh]">
-    <h2 class="font-semibold mb-3">Edit Role: {{role.name}}</h2>
+    <h2 class="font-semibold mb-3">{{#str}}edit_role_heading, theme_default{{/str}} {{role.name}}</h2>
     <form method="post" class="mb-6 space-y-3">
       <input type="hidden" name="action" value="update_role_meta" />
       <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
       <div>
-        <label class="block text-xs font-medium">Name</label>
+        <label class="block text-xs font-medium">{{#str}}field_name, theme_default{{/str}}</label>
         <input name="name" value="{{role.name}}" class="w-full border rounded px-2 py-1 text-sm" required />
       </div>
       <div>
-        <label class="block text-xs font-medium">Description</label>
+        <label class="block text-xs font-medium">{{#str}}field_description, theme_default{{/str}}</label>
         <textarea name="description" rows="2" class="w-full border rounded px-2 py-1 text-sm">{{role.description}}</textarea>
       </div>
       <div>
-        <label class="block text-xs font-medium">Sort Order</label>
+        <label class="block text-xs font-medium">{{#str}}field_sortorder, theme_default{{/str}}</label>
         <input type="number" name="sortorder" value="{{role.sortorder}}" class="w-full border rounded px-2 py-1 text-sm" />
       </div>
-      <button class="bg-indigo-600 text-white px-4 py-2 rounded text-sm">Update Role Info</button>
+      <button class="bg-indigo-600 text-white px-4 py-2 rounded text-sm">{{#str}}update_role_info_button, theme_default{{/str}}</button>
     </form>
     <form method="post">
       <input type="hidden" name="action" value="update_role_caps" />
       <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
       <div class="mb-4">
-        <h3 class="font-semibold mb-2">Templates</h3>
+        <h3 class="font-semibold mb-2">{{#str}}templates_heading, theme_default{{/str}}</h3>
         {{#templates}}
           <label class="flex items-center space-x-2 text-sm mb-1">
             <input type="checkbox" name="templates[]" value="{{id}}" {{#checked}}checked{{/checked}} />
             <span>{{shortname}}</span>
           </label>
         {{/templates}}
-        {{^templates}}<p class="text-xs text-gray-500">No templates defined.</p>{{/templates}}
+        {{^templates}}<p class="text-xs text-gray-500">{{#str}}no_templates_defined, theme_default{{/str}}</p>{{/templates}}
       </div>
       <div class="mb-4">
-        <h3 class="font-semibold mb-2">Capabilities</h3>
+        <h3 class="font-semibold mb-2">{{#str}}capabilities_heading, theme_default{{/str}}</h3>
         <table class="w-full text-xs">
-          <thead><tr><th class="text-left">Capability</th><th>Type</th><th>Permission</th></tr></thead>
+          <thead><tr><th class="text-left">{{#str}}capability_label, theme_default{{/str}}</th><th>{{#str}}type_label, theme_default{{/str}}</th><th>{{#str}}permission_label, theme_default{{/str}}</th></tr></thead>
           <tbody>
           {{#capabilities}}
             <tr class="border-t">
@@ -100,32 +100,32 @@
           </tbody>
         </table>
       </div>
-      <button class="bg-green-600 text-white px-4 py-2 rounded">Save Changes</button>
+      <button class="bg-green-600 text-white px-4 py-2 rounded">{{#str}}save_changes_button, theme_default{{/str}}</button>
     </form>
     <div class="mt-6">
-      <h3 class="font-semibold mb-2">Assigned Users</h3>
+      <h3 class="font-semibold mb-2">{{#str}}assigned_users_heading, theme_default{{/str}}</h3>
       <ul class="text-sm mb-3 space-y-1">
         {{#user_assignments}}
           <li class="flex items-center justify-between bg-gray-50 px-2 py-1 rounded">
             <span>{{username}}</span>
-            <form method="post" onsubmit="return confirm('Unassign user?');">
+            <form method="post" onsubmit="return confirm('{{#str}}confirm_unassign_user, theme_default{{/str}}');">
               <input type="hidden" name="action" value="unassign_user" />
               <input type="hidden" name="userid" value="{{id}}" />
               <input type="hidden" name="csrf_token" value="{{../csrf_token}}" />
-              <button class="text-red-600 text-xs">Remove</button>
+              <button class="text-red-600 text-xs">{{#str}}remove_button, theme_default{{/str}}</button>
             </form>
           </li>
         {{/user_assignments}}
-        {{^user_assignments}}<li class="text-xs text-gray-500">No users assigned.</li>{{/user_assignments}}
+        {{^user_assignments}}<li class="text-xs text-gray-500">{{#str}}no_users_assigned, theme_default{{/str}}</li>{{/user_assignments}}
       </ul>
       <form method="post" class="flex space-x-2 items-end">
         <input type="hidden" name="action" value="assign_user" />
         <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
         <div>
-          <label class="block text-xs">User ID</label>
+          <label class="block text-xs">{{#str}}field_user_id, theme_default{{/str}}</label>
           <input name="userid" type="number" class="border rounded px-2 py-1 w-28" />
         </div>
-        <button class="bg-blue-600 text-white px-3 py-1 rounded text-sm">Assign</button>
+        <button class="bg-blue-600 text-white px-3 py-1 rounded text-sm">{{#str}}assign_button, theme_default{{/str}}</button>
       </form>
     </div>
   </div>

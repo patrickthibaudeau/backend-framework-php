@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="{{meta_description}}" />
     <meta name="csrf-token" content="{{csrf_token}}" />
-    <title>{{#page_title}}{{page_title}} · {{/page_title}}Admin Console</title>
+    <title>{{#page_title}}{{page_title}} · {{/page_title}}{{#str}}admin_console_title, theme_default{{/str}}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = Object.assign({},{
@@ -24,7 +24,7 @@
 <body class="h-full min-h-screen flex flex-col text-slate-800 antialiased" x-data="{ drawerOpen: true }">
     {{> icons}}
     {{> navigation}}
-    <div class="flex flex-1 w-full max-w-7xl mx-auto gap-0 md:gap-6 px-0 md:px-6 lg:px-8 py-0 md:py-6 relative">
+    <div class="flex flex-1 w-full max-w-7xl mx-auto gap-0 md:gap-6 px-0 md:px-6 lg:px-8 py-0 md:py-6 relative" aria-label="{{#str}}primary_navigation_wrapper, theme_default{{/str}}">
         {{#is_authenticated}}
         {{> left_drawer}}
         {{/is_authenticated}}
