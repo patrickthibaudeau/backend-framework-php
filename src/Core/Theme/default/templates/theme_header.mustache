@@ -21,7 +21,7 @@
     </style>
     {{#extra_head}} {{{extra_head}}} {{/extra_head}}
 </head>
-<body class="h-full min-h-screen flex flex-col text-slate-800 antialiased" x-data="{ drawerOpen: true }">
+<body class="h-full min-h-screen flex flex-col text-slate-800 antialiased" x-data="{ drawerOpen:true, init(){ try { const s=localStorage.getItem('df_drawer_open'); if(s!==null){ this.drawerOpen = (s==='1'); } this.$watch('drawerOpen', v => { try { localStorage.setItem('df_drawer_open', v ? '1':'0'); } catch(e){} }); } catch(e){} } }" x-init="init()">
     {{> icons}}
     {{> navigation}}
     <div class="flex flex-1 w-full gap-0 md:gap-6 px-0 md:px-6 lg:px-8 py-0 md:py-6 relative" aria-label="{{#str}}primary_navigation_wrapper, theme_default{{/str}}">
