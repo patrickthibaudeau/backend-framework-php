@@ -5,6 +5,7 @@ use DevFramework\Core\Database\DatabaseFactory;
 use DevFramework\Core\Module\ModuleHelper;
 use DevFramework\Core\Module\ModuleManager;
 use DevFramework\Core\Module\LanguageManager;
+use DevFramework\Core\Notifications\NotificationManager; // Added for notification system
 
 // Load database constants first, then module constants
 require_once __DIR__ . '/Database/constants.php';
@@ -1088,6 +1089,66 @@ if (!function_exists('get_core_installation_status')) {
         return $installer->getInstallationStatus();
     }
 }
+
+// --- Notification & Tailwind Helpers (Added) ---
+if (!function_exists('notification')) {
+    /**
+     * Get the global NotificationManager instance
+     */
+    function notification(): NotificationManager
+    {
+        return NotificationManager::getInstance();
+    }
+}
+
+if (!function_exists('render_notifications')) {
+    /**
+     * Render all queued notifications as Tailwind alert components
+     *
+     * @param bool $consume Remove notifications after rendering
+     * @return string
+     */
+    function render_notifications(bool $consume = true): string
+    {
+        return notification()->render($consume);
+    }
+}
+
+if (!function_exists('tailwind_cdn')) {
+    /**
+     * Return Tailwind CSS CDN script tag.
+     * Optional configuration can be passed to adjust theme or plugins.
+     *
+     * @param array $config Tailwind config (merged into tailwind.config = {...})
+     * @return string
+     */
+    function tailwind_cdn(array $config = []): string
+    {
+        $defaultConfig = [
+            'theme' => [
+                'extend' => [
+                    'colors' => [
+                        'brand' => [
+                            '50' => '#f5f9ff',
+                            '100' => '#e0efff',
+                            '500' => '#1d4ed8',
+                            '600' => '#1e40af',
+                        ]
+                    ]
+                ]
+            ]
+        ];
+        if (!empty($config)) {
+            // Merge simple (shallow) arrays; for deeper merges user can provide already merged array
+            $merged = array_replace_recursive($defaultConfig, $config);
+        } else {
+            $merged = $defaultConfig;
+        }
+        $json = json_encode($merged, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        return '<script src="https://cdn.tailwindcss.com"></script>' . "\n" . '<script>tailwind.config = ' . $json . ';</script>';
+    }
+}
+// --- End Notification & Tailwind Helpers ---
 
 // Load authentication helpers
 require_once __DIR__ . '/Auth/helpers.php';

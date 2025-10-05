@@ -418,3 +418,96 @@ See the following files for usage examples:
 - `public/demo.html` - Interactive web demo
 - `public/test.php` - Configuration system testing
 - `example.php` - Complete PHP usage examples
+
+# Notification System & Tailwind CSS Integration
+
+The framework now includes a lightweight, framework-wide notification (flash message) system plus built-in Tailwind CSS CDN helper for rapid UI prototyping.
+
+### Tailwind CSS Usage
+
+You can include Tailwind via CDN anywhere in your views:
+
+```php
+echo tailwind_cdn(); // Inserts the CDN script + default config
+```
+
+Optional custom configuration (merged with defaults):
+```php
+echo tailwind_cdn([
+    'theme' => [
+        'extend' => [
+            'colors' => [ 'primary' => '#0ea5e9' ]
+        ]
+    ]
+]);
+```
+
+### Notifications API
+
+Use the global `notification()` helper to queue messages anywhere (controllers, scripts, modules):
+
+```php
+notification()->success('Profile updated');
+notification()->error('Invalid password');
+notification()->warning('Storage reaching capacity');
+notification()->info('Background job scheduled');
+notification()->debug('Raw payload: ' . json_encode($payload));
+```
+
+Each method accepts an optional options array:
+```php
+notification()->success('Saved!', [
+    'title' => 'Success',
+    'dismissible' => true,
+    'data' => ['id' => 123]
+]);
+```
+
+### Rendering Notifications
+
+In a PHP view or page after including `helpers.php`:
+```php
+echo tailwind_cdn();
+// ... your layout/header ...
+
+// Render and consume flash notifications
+echo render_notifications();
+```
+
+`render_notifications()` consumes (removes) notifications by default. To render without consuming:
+```php
+echo render_notifications(false); // Leaves them in the queue
+```
+
+### Behavior
+- Web (HTTP) requests: notifications persist across redirects using PHP sessions.
+- CLI: notifications are stored in-memory for the duration of the process (handy for tests/scripts).
+- Dismiss buttons are included (client-side removal only).
+- Output is Tailwind utility class based components (no additional CSS required).
+
+### Demo Pages / Scripts
+- Web demo: `public/notifications-demo.php`
+- CLI test: `php test-notifications.php`
+
+### Example Demo Page Snippet
+```php
+require __DIR__ . '/../vendor/autoload.php';
+require __DIR__ . '/../src/Core/helpers.php';
+notification()->success('Logged in successfully');
+notification()->error('Could not load profile');
+?><!DOCTYPE html>
+<html><head><?= tailwind_cdn(); ?></head>
+<body class="p-8 max-w-3xl mx-auto">
+  <h1 class="text-2xl font-bold mb-4">Notifications Demo</h1>
+  <?= render_notifications(); ?>
+</body></html>
+```
+
+### Extending
+You can customize rendering by retrieving raw data:
+```php
+$all = notification()->all(false); // Get without consuming
+foreach ($all as $note) {
+    // Custom output
+}
+```
