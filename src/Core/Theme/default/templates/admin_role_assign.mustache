@@ -1,0 +1,113 @@
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold">{{#str}}roles_title, theme_default{{/str}}</h1>
+  <a href="{{home_link}}" class="text-blue-600 hover:underline text-sm">{{#str}}back_admin_home, theme_default{{/str}}</a>
+</div>
+{{#flashes}}
+  <div class="mb-4 p-3 rounded {{css_class}} text-sm">{{msg}}</div>
+{{/flashes}}
+<div class="grid md:grid-cols-3 gap-6">
+  <div class="md:col-span-1 bg-white p-4 rounded shadow max-h-[75vh] overflow-auto">
+    <h2 class="font-semibold mb-3 text-sm">{{#str}}existing_roles_heading, theme_default{{/str}}</h2>
+    <ul class="space-y-1 text-sm" id="roleList">
+      {{#roles}}
+        <li>
+          <a href="role_assign.php?role={{id}}" class="block px-2 py-1 rounded border {{#selected}}bg-indigo-600 text-white border-indigo-600{{/selected}}{{^selected}}hover:bg-gray-50 border-transparent{{/selected}}">
+            <span class="font-medium">{{name}}</span>
+            <span class="text-xs opacity-70 ml-1">({{shortname}})</span>
+          </a>
+        </li>
+      {{/roles}}
+      {{^roles}}<li class="text-xs text-gray-500">(none)</li>{{/roles}}
+    </ul>
+  </div>
+  <div class="md:col-span-2 bg-white p-4 rounded shadow max-h-[80vh] overflow-auto">
+    {{^has_role}}
+      <p class="text-sm text-gray-600">Select a role on the left to view and manage user assignments.</p>
+    {{/has_role}}
+    {{#has_role}}
+    <div class="flex items-start justify-between mb-4">
+      <div>
+        <h2 class="font-semibold text-lg">{{role.name}}</h2>
+        <p class="text-xs text-gray-500">{{#str}}assigned_users_heading, theme_default{{/str}}</p>
+      </div>
+      <a href="role_assign.php" class="text-xs px-2 py-1 rounded border border-slate-300 hover:bg-slate-100 text-slate-600">{{#str}}close_button, theme_default{{/str}}</a>
+    </div>
+    <div>
+      <h3 class="font-semibold mb-2 text-sm">{{#str}}assigned_users_heading, theme_default{{/str}}</h3>
+      <ul class="text-sm mb-4 space-y-1" id="assignedUsersList">
+        {{#user_assignments}}
+          <li class="flex items-center justify-between bg-gray-50 px-2 py-1 rounded">
+            <span>{{username}}</span>
+            <form method="post" onsubmit="return confirm('{{#str}}confirm_unassign_user, theme_default{{/str}}');" class="ml-2">
+              <input type="hidden" name="action" value="unassign_user" />
+              <input type="hidden" name="userid" value="{{id}}" />
+              <input type="hidden" name="csrf_token" value="{{../csrf_token}}" />
+              <button class="text-red-600 text-xs hover:underline" type="submit">{{#str}}remove_button, theme_default{{/str}}</button>
+            </form>
+          </li>
+        {{/user_assignments}}
+        {{^user_assignments}}<li class="text-xs text-gray-500">{{#str}}no_users_assigned, theme_default{{/str}}</li>{{/user_assignments}}
+      </ul>
+      <div class="border-t pt-4 mt-4">
+        <label class="block text-xs font-medium mb-1">{{#str}}user_search_placeholder, theme_default{{/str}}</label>
+        <input id="userSearchInput" type="text" class="w-full border rounded px-2 py-1 text-sm" placeholder="{{#str}}user_search_placeholder, theme_default{{/str}}" autocomplete="off" />
+        <div id="userSearchStatus" class="mt-1 text-xs text-gray-500 hidden" data-no-match="{{#str}}no_users_assigned, theme_default{{/str}}"></div>
+        <form id="batchAssignForm" method="post" class="mt-3 hidden flex-col gap-2">
+          <input type="hidden" name="action" value="assign_users_batch" />
+          <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
+          <div id="userResults" class="max-h-56 overflow-auto border rounded p-2 space-y-1 bg-white text-xs"></div>
+          <div class="flex justify-end">
+            <button type="submit" class="bg-green-600 text-white text-xs px-3 py-1 rounded disabled:opacity-40" disabled>{{#str}}add_selected_button, theme_default{{/str}}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {{/has_role}}
+  </div>
+</div>
+{{#has_role}}
+<script>
+(function(){
+  const input = document.getElementById('userSearchInput');
+  if(!input) return;
+  const resultsBox = document.getElementById('userResults');
+  const form = document.getElementById('batchAssignForm');
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const statusEl = document.getElementById('userSearchStatus');
+  let debounceTimer=null,lastQuery='';
+  function setStatus(msg, show=true){ if(!statusEl) return; statusEl.textContent=msg||''; statusEl.classList.toggle('hidden',!show || !msg); }
+  function updateSubmitState(){ const any = resultsBox.querySelectorAll('input[type="checkbox"][name="userids[]"]:checked').length>0; submitBtn.disabled=!any; }
+  resultsBox.addEventListener('change', updateSubmitState);
+  function renderUsers(list){
+    resultsBox.innerHTML='';
+    if(!list.length){ resultsBox.innerHTML='<div class="text-gray-500 text-xs">'+(statusEl.dataset.noMatch||'')+'</div>'; return; }
+    list.forEach(u=>{
+      const label=document.createElement('label');
+      label.className='flex items-start gap-2 text-xs border rounded px-2 py-1 hover:bg-gray-50';
+      const cb=document.createElement('input'); cb.type='checkbox'; cb.name='userids[]'; cb.value=u.id; cb.className='mt-0.5';
+      const meta=[]; if(u.fullname) meta.push(u.fullname); meta.push('@'+u.username); if(u.email) meta.push(u.email); if(u.idnumber) meta.push('#'+u.idnumber);
+      const span=document.createElement('span'); span.textContent=meta.join(' · ');
+      label.appendChild(cb); label.appendChild(span); resultsBox.appendChild(label);
+    });
+    updateSubmitState();
+  }
+  async function search(q){
+    setStatus('Searching…'); form.classList.remove('hidden');
+    try {
+      const url='role_assign.php?role={{role_id}}&user_search=1&q='+encodeURIComponent(q);
+      const res=await fetch(url,{headers:{'Accept':'application/json'}});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const data=await res.json();
+      renderUsers(data); setStatus(data.length?'':(statusEl.dataset.noMatch||''));
+    } catch(e){ setStatus('Error'); }
+  }
+  input.addEventListener('input', function(){
+    const q=this.value.trim();
+    if(q.length<2){ lastQuery=''; resultsBox.innerHTML=''; form.classList.add('hidden'); setStatus(''); return; }
+    if(q===lastQuery) return; lastQuery=q;
+    clearTimeout(debounceTimer); debounceTimer=setTimeout(()=>search(q),300);
+  });
+})();
+</script>
+{{/has_role}}
+

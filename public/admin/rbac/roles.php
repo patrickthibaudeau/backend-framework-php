@@ -113,6 +113,61 @@ if ($editingRole) {
     $context['home_link'] = '../index.php';
 }
 
+if ($editingRole && isset($_GET['user_search']) && (int)$_GET['user_search'] === 1) {
+    header('Content-Type: application/json');
+    $q = trim($_GET['q'] ?? '');
+    if (strlen($q) < 2) { echo json_encode([]); exit; }
+    global $DB; $prefixUsers = $DB->addPrefix('users'); $assignments = $DB->get_records('role_assignment',['roleid'=>$editingRole->id]);
+    $assignedIds = array_map(fn($a)=>$a->userid, $assignments);
+    // Use distinct placeholders to avoid PDO named parameter duplication error
+    $pattern = '%'.$q.'%';
+    $params = [
+        ':q1'=>$pattern,
+        ':q2'=>$pattern,
+        ':q3'=>$pattern,
+        ':q4'=>$pattern,
+        ':q5'=>$pattern,
+    ];
+    $notIn = '';
+    if (!empty($assignedIds)) {
+        $placeholders = [];
+        foreach ($assignedIds as $idx=>$uid) { $ph = ':u'.$idx; $placeholders[] = $ph; $params[$ph] = $uid; }
+        $notIn = ' AND id NOT IN ('.implode(',',$placeholders).')';
+    }
+    $sql = "SELECT id, username, email, firstname, lastname, idnumber FROM {$prefixUsers} WHERE (username LIKE :q1 OR email LIKE :q2 OR firstname LIKE :q3 OR lastname LIKE :q4 OR idnumber LIKE :q5) {$notIn} ORDER BY username ASC LIMIT 20";
+    $rows = $DB->get_records_sql($sql, $params);
+    $out = array_map(function($r){
+        $fullname = trim(($r->firstname ?? '').' '.($r->lastname ?? ''));
+        return [
+            'id'=>$r->id,
+            'username'=>$r->username,
+            'email'=>$r->email,
+            'fullname'=>$fullname !== '' ? $fullname : null,
+            'idnumber'=>$r->idnumber ?? null
+        ];
+    }, $rows);
+    echo json_encode($out); exit;
+}
+// Batch assign users to role
+if ($action === 'assign_users_batch' && $editingRole) {
+    if (!admin_csrf_validate()) { admin_flash('error','CSRF failed'); header('Location: roles.php?edit='.$editingRole->id); exit; }
+    $userids = $_POST['userids'] ?? [];
+    if (!is_array($userids)) { $userids = []; }
+    $now = time(); $added=0;
+    foreach ($userids as $uidRaw) {
+        $uid = (int)$uidRaw; if ($uid <= 0) { continue; }
+        $existing = $DB->get_record('role_assignment',[ 'userid'=>$uid,'roleid'=>$editingRole->id,'component'=>null ]);
+        if ($existing) { continue; }
+        $DB->insert_record('role_assignment',[ 'userid'=>$uid,'roleid'=>$editingRole->id,'component'=>null,'timecreated'=>$now,'timemodified'=>$now ]);
+        $AM->logAction($currentUser->getId(),'role_assign',['userid'=>$uid],$uid,$editingRole->id);
+        $added++;
+    }
+    if ($added>0) { admin_flash('success', $added.' user(s) added'); } else { admin_flash('error','No users added'); }
+    header('Location: roles.php?edit='.$editingRole->id); exit;
+}
+
+if ($editingRole) { $context['role_id'] = $editingRole->id; }
+
 echo $OUTPUT->header([ 'page_title' => 'Roles','site_name' => 'Admin Console','user' => ['username'=>$currentUser->getUsername()], ]);
 echo $OUTPUT->renderFromTemplate('admin_roles', $context);
 echo $OUTPUT->footer();

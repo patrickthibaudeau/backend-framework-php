@@ -83,6 +83,56 @@
       <a href="{{return_url}}" class="text-sm px-4 py-2 rounded border border-slate-300 hover:bg-slate-50 text-slate-700 inline-flex items-center">{{#str}}cancel_button, theme_default{{/str}}</a>
     </div>
   </form>
+
+  {{^create_mode}}
+  <div class="mt-10 bg-white p-6 rounded shadow border border-slate-100">
+    <h3 class="font-semibold mb-4 text-lg flex items-center gap-2">{{#str}}user_roles_assigned_heading, theme_default{{/str}}</h3>
+    <div class="grid md:grid-cols-2 gap-6">
+      <div>
+        <h4 class="text-sm font-medium mb-2">{{#str}}user_roles_assigned_heading, theme_default{{/str}}</h4>
+        <ul class="space-y-2 text-sm">
+          {{#has_assigned_roles}}
+            {{#assigned_roles}}
+            <li class="flex items-center justify-between bg-gray-50 px-3 py-2 rounded border border-gray-200">
+              <span class="font-medium">{{name}} <span class="text-xs text-gray-500">({{shortname}})</span></span>
+              <form method="post" onsubmit="return confirm('Remove role?');" class="ml-3">
+                <input type="hidden" name="action" value="remove_role" />
+                <input type="hidden" name="roleid" value="{{id}}" />
+                <input type="hidden" name="csrf_token" value="{{../csrf_token}}" />
+                <button class="text-red-600 text-xs hover:underline" type="submit">{{#str}}remove_button, theme_default{{/str}}</button>
+              </form>
+            </li>
+            {{/assigned_roles}}
+          {{/has_assigned_roles}}
+          {{^has_assigned_roles}}
+            <li class="text-xs text-gray-500">{{#str}}no_roles_assigned, theme_default{{/str}}</li>
+          {{/has_assigned_roles}}
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-sm font-medium mb-2">{{#str}}user_roles_add_label, theme_default{{/str}}</h4>
+        {{#has_available_roles}}
+        <form method="post" class="flex items-end gap-3">
+          <input type="hidden" name="action" value="assign_role" />
+          <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
+          <div class="flex-1">
+            <label class="block text-xs font-semibold mb-1 tracking-wide uppercase text-slate-500">{{#str}}user_roles_add_label, theme_default{{/str}}</label>
+            <select name="roleid" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              {{#available_roles}}
+                <option value="{{id}}">{{name}} ({{shortname}})</option>
+              {{/available_roles}}
+            </select>
+          </div>
+          <button class="bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2 rounded" type="submit">{{#str}}assign_role_button, theme_default{{/str}}</button>
+        </form>
+        {{/has_available_roles}}
+        {{^has_available_roles}}
+          <p class="text-xs text-gray-500">{{#str}}no_roles_available, theme_default{{/str}}</p>
+        {{/has_available_roles}}
+      </div>
+    </div>
+  </div>
+  {{/create_mode}}
 </div>
 <script>
   (function(){

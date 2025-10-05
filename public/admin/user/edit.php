@@ -31,6 +31,16 @@ if (!$creating) {
     ];
 }
 
+// Preload roles & assignments if editing existing user
+$allRoles = [];
+$assignedRoles = [];
+if (!$creating) {
+    $allRoles = $DB->get_records('roles', [], 'sortorder ASC, id ASC');
+    $assignments = $DB->get_records('role_assignment', ['userid' => $user->id]);
+    $assignedRoleIds = array_map(fn($a)=>$a->roleid, $assignments);
+    $assignedRoles = array_values(array_filter($allRoles, fn($r)=>in_array($r->id, $assignedRoleIds, true)));
+}
+
 $action = $_POST['action'] ?? null;
 
 if ($action === 'save_user') {
@@ -115,6 +125,61 @@ if ($action === 'save_user') {
     }
 }
 
+if ($action === 'assign_role' && !$creating) {
+    if (!admin_csrf_validate()) { admin_flash('error','CSRF failed'); header('Location: edit.php?id='.$user->id.'&return='.urlencode($returnUrl)); exit; }
+    $roleid = (int)($_POST['roleid'] ?? 0);
+    if ($roleid > 0) {
+        $role = $DB->get_record('roles',['id'=>$roleid]);
+        if ($role) {
+            $existing = $DB->get_record('role_assignment',[ 'userid'=>$user->id,'roleid'=>$roleid,'component'=>null ]);
+            $now=time();
+            if ($existing) {
+                $DB->update_record('role_assignment',[ 'id'=>$existing->id,'timemodified'=>$now ]);
+            } else {
+                $DB->insert_record('role_assignment',[ 'userid'=>$user->id,'roleid'=>$roleid,'component'=>null,'timecreated'=>$now,'timemodified'=>$now ]);
+            }
+            admin_flash('success','Role added');
+        } else { admin_flash('error','Role not found'); }
+    }
+    header('Location: edit.php?id='.$user->id.'&return='.urlencode($returnUrl)); exit;
+}
+if ($action === 'remove_role' && !$creating) {
+    if (!admin_csrf_validate()) { admin_flash('error','CSRF failed'); header('Location: edit.php?id='.$user->id.'&return='.urlencode($returnUrl)); exit; }
+    $roleid = (int)($_POST['roleid'] ?? 0);
+    if ($roleid>0) {
+        // Protect primary admin from losing primary admin role if that's a rule; replicate logic from roles.php
+        $role = $DB->get_record('roles',['id'=>$roleid]);
+        if ($role && $role->shortname==='admin' && $user->username==='admin') {
+            admin_flash('error','Cannot remove Administrator role from primary admin user');
+        } else {
+            $DB->delete_records('role_assignment',[ 'userid'=>$user->id,'roleid'=>$roleid ]);
+            admin_flash('success','Role removed');
+        }
+    }
+    header('Location: edit.php?id='.$user->id.'&return='.urlencode($returnUrl)); exit;
+}
+
+// After potential save/assign/remove, recompute roles for context (if not creating)
+$assignedRoleIds = [];
+if (!$creating) {
+    $assignments = $DB->get_records('role_assignment', ['userid' => $user->id]);
+    $assignedRoleIds = array_map(fn($a)=>$a->roleid, $assignments);
+    $assignedRoles = array_values(array_filter($allRoles, fn($r)=>in_array($r->id, $assignedRoleIds, true)));
+}
+$assignedRolesView = array_map(fn($r)=>[
+    'id'=>$r->id,
+    'name'=>htmlspecialchars($r->name, ENT_QUOTES, 'UTF-8'),
+    'shortname'=>htmlspecialchars($r->shortname, ENT_QUOTES, 'UTF-8')
+], $assignedRoles);
+$availableRolesView = [];
+if (!$creating) {
+    foreach ($allRoles as $r) {
+        if (!in_array($r->id, $assignedRoleIds, true)) {
+            $availableRolesView[] = [ 'id'=>$r->id, 'name'=>htmlspecialchars($r->name, ENT_QUOTES,'UTF-8'), 'shortname'=>htmlspecialchars($r->shortname, ENT_QUOTES,'UTF-8') ];
+        }
+    }
+}
+
 $flashes = admin_get_flashes();
 $flashView = array_map(function($f){ $f['css_class'] = $f['type']==='error' ? 'bg-red-200 text-red-900' : 'bg-green-200 text-green-900'; return $f; }, $flashes);
 
@@ -167,6 +232,10 @@ $context = [
     ],
     'status_options'=>$statusOptions,
     'auth_options'=>$authOptions,
+    'assigned_roles' => $assignedRolesView,
+    'available_roles' => $availableRolesView,
+    'has_assigned_roles' => !$creating && count($assignedRolesView) > 0,
+    'has_available_roles' => !$creating && count($availableRolesView) > 0,
     'csrf_token'=>admin_csrf_token(),
     'return_url'=>$returnUrl,
     'home_link'=>'../index.php'
