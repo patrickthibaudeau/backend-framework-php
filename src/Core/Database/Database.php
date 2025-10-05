@@ -192,6 +192,26 @@ class Database
     }
 
     /**
+     * Get a single record using raw SQL (first row only)
+     */
+    public function get_record_sql(string $sql, array $params = []): ?\stdClass
+    {
+        $stmt = $this->execute($sql, $params);
+        $row = $stmt->fetch(\PDO::FETCH_OBJ);
+        return $row !== false ? $row : null;
+    }
+
+    /**
+     * Check existence using raw SQL (expects SELECT 1 style)
+     */
+    public function record_exists_sql(string $sql, array $params = []): bool
+    {
+        $stmt = $this->execute($sql, $params);
+        $val = $stmt->fetchColumn();
+        return $val !== false && $val !== null;
+    }
+
+    /**
      * Get a single field value
      */
     public function get_field(string $table, string $return, array $conditions = [], int $strictness = IGNORE_MISSING): mixed

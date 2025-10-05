@@ -38,6 +38,12 @@ class ConfigCommand
         };
     }
 
+    /** Alias to run() for console router consistency */
+    public function handle(array $args): void
+    {
+        $this->run($args);
+    }
+
     /**
      * Validate configuration
      */

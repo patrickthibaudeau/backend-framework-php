@@ -5,6 +5,7 @@ require_once __DIR__ . '/src/Core/helpers.php';
 
 use DevFramework\Core\Console\ConfigCommand;
 use DevFramework\Core\Console\ModuleCommand;
+use DevFramework\Core\Console\RolesCommand;
 
 // Simple console router
 if ($argc < 2) {
@@ -12,6 +13,7 @@ if ($argc < 2) {
     echo "Available commands:\n";
     echo "  config  - Configuration management\n";
     echo "  module  - Module management\n";
+    echo "  roles   - Role & capability management\n";
     exit(1);
 }
 
@@ -27,6 +29,11 @@ switch ($command) {
     case 'module':
         $moduleCommand = new ModuleCommand();
         $moduleCommand->handle($args);
+        break;
+
+    case 'roles':
+        $rolesCommand = new RolesCommand();
+        $rolesCommand->handle($args);
         break;
 
     default:

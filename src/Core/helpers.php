@@ -7,6 +7,7 @@ use DevFramework\Core\Module\ModuleManager;
 use DevFramework\Core\Module\LanguageManager;
 use DevFramework\Core\Notifications\NotificationManager; // Added for notification system
 use DevFramework\Core\Output\Output; // Added for Mustache output system
+use DevFramework\Core\Access\AccessManager; // Added for role/capability management
 
 // Load database constants first, then module constants
 require_once __DIR__ . '/Database/constants.php';
@@ -410,6 +411,14 @@ if (!function_exists('ensure_framework_initialized_safe')) {
             // Step 4: Initialize database connection through framework (now that core tables exist)
             DatabaseFactory::createGlobal();
 
+            // NEW: Ensure full core tables (including access control tables) are installed
+            try {
+                $coreInstaller = new \DevFramework\Core\Database\CoreInstaller();
+                $coreInstaller->installCoreTablesIfNeeded();
+            } catch (Exception $e) {
+                error_log('Framework: CoreInstaller invocation failed inside safe init: ' . $e->getMessage());
+            }
+
             // CRITICAL FIX: Ensure the Database instance has the correct prefix
             // This fixes the issue where schema_versions table was created without prefix
             global $DB;
@@ -713,6 +722,16 @@ if (!function_exists('ensure_framework_initialized_safe')) {
 // This is the critical piece that ensures database setup works across all entry points
 // FIXED: Modified to avoid circular dependencies while preserving upgrade functionality
 $initResult = ensure_framework_initialized_safe();
+
+// Sync capabilities (run once per process)
+if ($initResult && !defined('__CAPABILITIES_SYNCED')) {
+    try {
+        \DevFramework\Core\Access\AccessManager::getInstance()->syncAllCapabilities();
+        define('__CAPABILITIES_SYNCED', true);
+    } catch (Throwable $e) {
+        error_log('Capability sync failed: ' . $e->getMessage());
+    }
+}
 
 // If initialization failed and this is not a CLI request, show maintenance page
 if (!$initResult && php_sapi_name() !== 'cli') {
@@ -1352,3 +1371,16 @@ if (!function_exists('add_nav_item')) {
         return $nm->getNav();
     }
 }
+
+if (!function_exists('hasCapability')) {
+    /**
+     * Check if a user has a capability.
+     * @param string $capability Capability name (component:action)
+     * @param int $userid User ID
+     */
+    function hasCapability(string $capability, int $userid): bool
+    {
+        return \DevFramework\Core\Access\AccessManager::getInstance()->userHasCapability($capability, $userid);
+    }
+}
+
