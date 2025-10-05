@@ -1,0 +1,28 @@
+{{! navigation partial for top bar }}
+<header class="bg-white shadow-sm sticky top-0 z-40">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-3">
+        <button type="button" class="inline-flex md:hidden items-center justify-center w-9 h-9 rounded-lg bg-brand-600 text-white focus-ring" @click="drawerOpen = !drawerOpen" :aria-expanded="drawerOpen.toString()" aria-controls="sidebar-nav">
+          <svg x-show="!drawerOpen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          <svg x-show="drawerOpen" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+        <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-brand-600 text-white font-semibold">A</span>
+        <span class="font-semibold text-lg hidden md:inline-block">{{site_name}}</span>
+      </div>
+      <nav class="hidden md:flex items-center gap-6 text-sm" aria-label="Primary">
+        {{#nav}}
+        <a href="{{url}}" class="hover:text-brand-600 transition-colors {{#active}}text-brand-600 font-medium{{/active}}" aria-current="{{#active}}page{{/active}}">{{label}}</a>
+        {{/nav}}
+      </nav>
+    </div>
+    <div class="flex items-center gap-3">
+      {{#user}}
+      <span class="text-sm text-slate-600">Signed in as <strong>{{username}}</strong></span>
+      {{/user}}
+      {{#logout_url}}
+      <a href="{{logout_url}}" class="text-sm text-brand-600 hover:underline">Logout</a>
+      {{/logout_url}}
+    </div>
+  </div>
+</header>

@@ -1293,3 +1293,17 @@ if (!function_exists('output_enable_cache')) {
     function output_enable_cache(): void { output()->enableCache(); }
 }
 // --- End output cache management helpers ---
+
+if (!function_exists('dirroot')) {
+    /**
+     * Get the installation root directory (project root).
+     * Uses DIRROOT constant if defined (set in early_bootstrap.php) otherwise derives via relative path.
+     */
+    function dirroot(): string
+    {
+        if (defined('DIRROOT')) { return DIRROOT; }
+        // helpers.php located at src/Core/helpers.php -> project root is three levels up
+        return realpath(__DIR__ . '/../../..') ?: (__DIR__ . '/../../..');
+    }
+}
+

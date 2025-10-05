@@ -1,5 +1,6 @@
 <?php
-// Example page demonstrating use of $OUTPUT->header() and $OUTPUT->footer()
+// Example page demonstrating use of $OUTPUT->header() and $OUTPUT->footer() with
+// the new navigation header + collapsible left drawer (default core theme).
 // Accessible via /theme-example.php (assuming document root is public/)
 
 declare(strict_types=1);
@@ -48,26 +49,48 @@ require_once __DIR__ . '/../src/Core/helpers.php';
 
 global $OUTPUT;
 
-// Sample navigation data for the header
+// Primary (top) navigation items.
 $nav = [
-    ['url' => '/index.php', 'label' => 'Home'],
-    ['url' => '/dashboard.php', 'label' => 'Dashboard', 'active' => true],
-    ['url' => '/theme-example.php', 'label' => 'Theme Demo'],
+    ['url' => '/index.php',         'label' => 'Home'],
+    ['url' => '/dashboard.php',     'label' => 'Dashboard'],
+    ['url' => '/theme-example.php', 'label' => 'Theme Demo', 'active' => true], // Mark this page active
 ];
 
-// User context (would normally come from auth system)
-$user = [ 'username' => 'admin' ];
+// Left drawer navigation (can mirror or differ from top nav).
+$drawerItems = [
+    [
+        'url' => '/dashboard.php',
+        'label' => 'Dashboard',
+        'active' => false,
+        'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h8V3H3v10Zm10 8h8V3h-8v18ZM3 21h8v-6H3v6Z"/></svg>'
+    ],
+    [
+        'url' => '/theme-example.php',
+        'label' => 'Theme Demo',
+        'active' => true,
+        'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>'
+    ],
+    [
+        'url' => '/settings.php',
+        'label' => 'Settings',
+        'active' => false,
+        'icon' => '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 0 1 4 0v.09c0 .69.4 1.31 1.01 1.51H15a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.69 0 1.31.4 1.51 1.01V10a1.65 1.65 0 0 0 1.49 1.65H22a2 2 0 0 1 0 4h-.09c-.69 0-1.31.4-1.51 1.01Z"/></svg>'
+    ],
+];
 
-// Render header
+// User context (stub; normally from auth subsystem)
+$user = ['username' => 'admin'];
+
+// Render header (includes navigation + left drawer)
 echo $OUTPUT->header([
     'page_title' => 'Theme Demo',
     'site_name' => 'DevFramework',
     'nav' => $nav,
+    'drawer_items' => $drawerItems,
     'user' => $user,
     'logout_url' => '/logout.php',
-    'meta_description' => 'Demonstration of default core theme header/footer convenience methods.'
+    'meta_description' => 'Demonstration of default core theme layout with navigation & left drawer.'
 ]);
-
 ?>
 
 <div class="space-y-10">
@@ -160,7 +183,7 @@ echo $OUTPUT->header([
                 <p class="mt-3 text-sm leading-relaxed text-slate-600">This demonstration layout illustrates how to compose pages using <code class="bg-slate-100 px-1 py-0.5 rounded text-xs">$OUTPUT->header()</code> and <code class="bg-slate-100 px-1 py-0.5 rounded text-xs">$OUTPUT->footer()</code>. Insert your dynamic application logic and components between these calls. Utilize Tailwind utility classes for rapid UI composition.</p>
                 <ul class="mt-4 space-y-2 text-sm text-slate-600 list-disc list-inside">
                     <li>Consistent top navigation & branding</li>
-                    <li>Semantic, accessible HTML structure</li>
+                    <li>Left drawer for primary IA / quick access</li>
                     <li>Composable content areas and cards</li>
                     <li>Easy theming via centralized templates</li>
                 </ul>
@@ -170,7 +193,7 @@ echo $OUTPUT->header([
                 <div class="mt-3 grid gap-4 sm:grid-cols-2">
                     <div class="rounded-md border border-slate-200 p-4 bg-slate-50">
                         <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Customization</p>
-                        <p class="text-sm text-slate-600">Add more partials (sidebar, breadcrumbs) and register them as reusable UI fragments.</p>
+                        <p class="text-sm text-slate-600">Add more partials (breadcrumbs, alerts, modals) and reuse them across modules.</p>
                     </div>
                     <div class="rounded-md border border-slate-200 p-4 bg-slate-50">
                         <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Dynamic Data</p>

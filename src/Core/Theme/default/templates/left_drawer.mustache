@@ -1,0 +1,39 @@
+{{! Left Drawer / Sidebar Navigation }}
+<aside
+  class="bg-white border-r border-slate-200 w-64 md:translate-x-0 top-16 bottom-0 left-0 z-30 md:static fixed transform transition-transform duration-200 ease-out flex flex-col"
+  x-bind:class="drawerOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0 md:w-16'"
+  aria-label="Primary navigation"
+>
+  <!-- Top toolbar with collapse/expand control -->
+  <div class="p-3 border-b border-slate-200 flex items-center justify-between">
+    <button
+      type="button"
+      @click="drawerOpen = !drawerOpen"
+      x-data="{ collapseLabel: '{{#str}}collapse, theme_default{{/str}}', expandLabel: '{{#str}}expand, theme_default{{/str}}' }"
+      x-bind:aria-label="drawerOpen ? collapseLabel : expandLabel"
+      class="inline-flex items-center justify-center gap-2 text-xs font-medium px-3 py-2 rounded-md border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-600 transition w-full"
+    >
+      <!-- Icon when open: left chevrons -->
+      <svg x-show="drawerOpen" class="h-4 w-4" aria-hidden="true" focusable="false"><use href="#icon-chevrons-left" /></svg>
+      <!-- Icon when closed: right chevrons -->
+      <svg x-cloak x-show="!drawerOpen" class="h-4 w-4" aria-hidden="true" focusable="false"><use href="#icon-chevrons-right" /></svg>
+      <!-- Screen reader only text -->
+      <span class="sr-only" x-show="drawerOpen" x-transition.opacity>{{#str}}collapse, theme_default{{/str}}</span>
+      <span class="sr-only" x-cloak x-show="!drawerOpen" x-transition.opacity>{{#str}}expand, theme_default{{/str}}</span>
+    </button>
+  </div>
+
+  <nav class="flex-1 overflow-y-auto p-3 space-y-1 text-sm" id="sidebar-nav">
+    {{#drawer_items}}
+    <a href="{{url}}" class="group flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100 text-slate-700 transition-colors {{#active}}bg-slate-100 font-medium{{/active}}" aria-current="{{#active}}page{{/active}}">
+      {{#icon}}
+      <span class="w-5 h-5 text-slate-400 group-hover:text-slate-600 inline-flex items-center justify-center">{{{icon}}}</span>
+      {{/icon}}
+      <span class="truncate" x-show="drawerOpen" x-transition.opacity>{{label}}</span>
+    </a>
+    {{/drawer_items}}
+    {{^drawer_items}}
+    <div class="text-xs text-slate-400 px-3 py-2">No navigation configured</div>
+    {{/drawer_items}}
+  </nav>
+</aside>

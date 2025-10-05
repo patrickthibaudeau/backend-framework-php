@@ -37,5 +37,10 @@ if (!function_exists('__df_install_early_vendor_deprecation_handler')) {
     }
 }
 
-__df_install_early_vendor_deprecation_handler();
+// Define installation root constant if not already defined
+if (!defined('DIRROOT')) {
+    // early_bootstrap.php sits in project root already
+    define('DIRROOT', realpath(__DIR__));
+}
 
+__df_install_early_vendor_deprecation_handler();

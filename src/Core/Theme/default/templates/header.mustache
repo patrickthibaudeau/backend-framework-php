@@ -33,32 +33,15 @@
     <style>
         .app-shell-gradient { background: linear-gradient(135deg,#1e3a8a,#1d4ed8,#2563eb); }
         .focus-ring:focus { outline: 2px solid #2563eb; outline-offset: 2px; }
+        [x-cloak] { display: none !important; }
     </style>
 
     {{! Hook: place for additional <head> injections }}
     {{#extra_head}} {{{extra_head}}} {{/extra_head}}
 </head>
-<body class="h-full min-h-screen flex flex-col text-slate-800 antialiased">
-    <header class="bg-white shadow-sm sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-brand-600 text-white font-semibold">A</span>
-                <span class="font-semibold text-lg">{{site_name}}</span>
-            </div>
-            <nav class="hidden md:flex items-center gap-6 text-sm">
-                {{#nav}}
-                <a href="{{url}}" class="hover:text-brand-600 transition-colors" {{#active}}aria-current="page" class="text-brand-600 font-medium"{{/active}}>{{label}}</a>
-                {{/nav}}
-            </nav>
-            <div class="flex items-center gap-3">
-                {{#user}}
-                <span class="text-sm text-slate-600">Signed in as <strong>{{username}}</strong></span>
-                {{/user}}
-                {{#logout_url}}
-                <a href="{{logout_url}}" class="text-sm text-brand-600 hover:underline">Logout</a>
-                {{/logout_url}}
-            </div>
-        </div>
-    </header>
-    <main id="app-main" class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-
+<body class="h-full min-h-screen flex flex-col text-slate-800 antialiased" x-data="{ drawerOpen: true }">
+    {{> icons}}
+    {{> navigation}}
+    <div class="flex flex-1 w-full max-w-7xl mx-auto gap-0 md:gap-6 px-0 md:px-6 lg:px-8 py-0 md:py-6 relative">
+        {{> left_drawer}}
+        <main id="app-main" class="flex-1 px-4 sm:px-6 lg:px-4 py-6">

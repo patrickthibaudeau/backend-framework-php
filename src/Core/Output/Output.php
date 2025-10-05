@@ -2,6 +2,7 @@
 namespace DevFramework\Core\Output;
 
 use Exception;
+use DevFramework\Core\Module\LanguageManager; // Added for language strings
 
 /**
  * Output rendering manager using Mustache templates.
@@ -26,6 +27,8 @@ class Output
 
     /** @var bool Whether to suppress known Mustache PHP 8.4 deprecation warnings */
     protected bool $suppressMustacheDeprecations = true;
+
+    protected array $themeLangCache = []; // cache for theme language strings
 
     private function __construct()
     {
@@ -169,8 +172,70 @@ class Output
         }
 
         if (!$this->engine) {
-            // Build engine lazily now
             $this->buildEngine();
+        }
+
+        $dataArr = (array)$data;
+        if (!array_key_exists('dirroot', $dataArr)) {
+            $dataArr['dirroot'] = defined('DIRROOT') ? DIRROOT : dirname(__DIR__, 3);
+        }
+
+        // Inject language string lambda helper if not already provided
+        if (!isset($dataArr['str']) || !is_callable($dataArr['str'])) {
+            $dataArr['str'] = function ($text, $helper) {
+                $raw = trim($text);
+                // Allow multiline section content; collapse internal newlines/spaces
+                $raw = preg_replace('/\s+/', ' ', $raw);
+                // Expected format: key, component[, param=value, param2=value]
+                $parts = array_map('trim', explode(',', $raw));
+                $key = $parts[0] ?? '';
+                $component = $parts[1] ?? '';
+                $params = [];
+                if (count($parts) > 2) {
+                    for ($i = 2; $i < count($parts); $i++) {
+                        if (str_contains($parts[$i], '=')) {
+                            [$pK, $pV] = array_map('trim', explode('=', $parts[$i], 2));
+                            if ($pK !== '') { $params[$pK] = $pV; }
+                        }
+                    }
+                }
+                if ($key === '') { return ''; }
+
+                // Determine language (current from LanguageManager if available)
+                $language = 'en';
+                try {
+                    $lm = LanguageManager::getInstance();
+                    $language = $lm->getCurrentLanguage();
+                } catch (\Throwable $e) {
+                    // ignore
+                }
+
+                $value = null;
+
+                // Theme component support: expects component like theme_default
+                if ($component !== '' && str_starts_with($component, 'theme_')) {
+                    $value = $this->getThemeLangString($component, $key, $language, $params);
+                } elseif ($component !== '') {
+                    // Module / core component via LanguageManager
+                    try {
+                        $lm = LanguageManager::getInstance();
+                        $value = $lm->formatString($component, $key, $params, $language);
+                        if ($value === $key) { // fallback not found, treat as null
+                            $value = null;
+                        }
+                    } catch (\Throwable $e) {
+                        $value = null;
+                    }
+                }
+
+                // If still null try theme_default as a last resort for common keys
+                if ($value === null) {
+                    $value = $this->getThemeLangString('theme_default', $key, $language, $params);
+                }
+
+                // Final fallback: return key itself
+                return $value ?? $key;
+            };
         }
 
         $path = $this->resolveTemplatePath($componentSlug, $templateSlug);
@@ -179,9 +244,39 @@ class Output
         }
 
         $source = file_get_contents($path);
-        return $this->withSuppressedMustacheDeprecations(function () use ($source, $data) {
-            return $this->engine->render($source, $data);
+        return $this->withSuppressedMustacheDeprecations(function () use ($source, $dataArr) {
+            return $this->engine->render($source, $dataArr);
         });
+    }
+
+    protected function getThemeLangString(string $themeComponent, string $key, string $language, array $params = []): ?string
+    {
+        // themeComponent format: theme_default
+        $themeName = substr($themeComponent, strlen('theme_')) ?: 'default';
+        $cacheKey = $themeName . ':' . $language;
+        if (!isset($this->themeLangCache[$cacheKey])) {
+            $this->themeLangCache[$cacheKey] = [];
+            $root = defined('DIRROOT') ? DIRROOT : dirname(__DIR__, 3);
+            $langFile = $root . '/src/Core/Theme/' . $themeName . '/lang/' . $language . '/strings.php';
+            if (!is_file($langFile) && $language !== 'en') {
+                // fallback to en
+                $langFile = $root . '/src/Core/Theme/' . $themeName . '/lang/en/strings.php';
+            }
+            if (is_file($langFile)) {
+                $string = [];
+                try { include $langFile; } catch (\Throwable $e) { /* ignore */ }
+                if (isset($string) && is_array($string)) {
+                    $this->themeLangCache[$cacheKey] = $string;
+                }
+            }
+        }
+        $value = $this->themeLangCache[$cacheKey][$key] ?? null;
+        if ($value !== null && $params) {
+            foreach ($params as $pK => $pV) {
+                $value = str_replace('{' . $pK . '}', $pV, $value);
+            }
+        }
+        return $value;
     }
 
     /** Determine full file path for a component + slug */
