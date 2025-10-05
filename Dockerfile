@@ -3,6 +3,7 @@ FROM ubuntu:24.04
 # Set environment variables to prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
+ENV COMPOSER_ALLOW_SUPERUSER=1
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -46,7 +47,7 @@ RUN apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Composer
+# Install Composer (fixed pipe)
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 # Create www-data user directories
@@ -59,9 +60,14 @@ WORKDIR /var/www
 # Copy composer files first for better Docker layer caching
 COPY composer.json composer.lock* ./
 
-# Install Composer dependencies
-RUN composer install --no-dev --optimize-autoloader --no-scripts \
-    && chown -R www-data:www-data /var/www
+# Install Composer dependencies (handle out-of-date lock for newly added packages)
+RUN set -e; \
+    if grep -q '"mustache/mustache"' composer.json && ! grep -q 'mustache/mustache' composer.lock 2>/dev/null; then \
+        echo 'Lock file missing mustache/mustache – updating that package lock entry...'; \
+        composer update mustache/mustache --no-dev --no-scripts --no-interaction; \
+    fi; \
+    composer install --no-dev --optimize-autoloader --no-scripts; \
+    chown -R www-data:www-data /var/www
 
 # Copy configuration files
 COPY docker/nginx.conf /etc/nginx/nginx.conf

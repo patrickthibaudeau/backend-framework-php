@@ -511,3 +511,82 @@ foreach ($all as $note) {
     // Custom output
 }
 ```
+
+## Mustache Templating System
+
+A core Output component using Mustache is available globally through the `$OUTPUT` variable and helper functions.
+
+### Naming Convention
+Templates are referenced by `component_template` (component + underscore + template file name without extension). The component maps to either a Core component directory (PascalCase) under `src/Core/` or a Module under `modules/`.
+
+Example:
+- File: `src/Core/Auth/templates/method.mustache`
+- Call: `$OUTPUT->renderFromTemplate('auth_method', ['method' => 'Password Login']);`
+
+### Directory Layout
+```
+src/Core/Auth/templates/*.mustache
+src/Core/Notifications/templates/*.mustache
+modules/YourModule/templates/*.mustache
+```
+
+### Usage
+```php
+require 'vendor/autoload.php';
+require 'src/Core/helpers.php';
+
+global $OUTPUT; // or use output() helper
+
+$html = $OUTPUT->renderFromTemplate('auth_method', [
+    'method' => 'Single Sign-On'
+]);
+
+echo $html;
+```
+
+### Helper Wrapper
+```php
+echo render_template('auth_method', ['method' => 'API Token']);
+```
+
+### Adding Custom Roots (Themes)
+```php
+output()->addRoot('theme', __DIR__ . '/themes/default');
+// Then a file themes/default/Auth/method.mustache could override rendering
+```
+
+### Escaping & Security
+All values are HTML-escaped via `htmlspecialchars` unless you use triple braces `{{{ raw_html }}}` in Mustache (ensure you trust that content).
+
+### Error Handling
+If a template cannot be located, an Exception is thrown identifying the searched path.
+
+### Example Template (`method.mustache`)
+```mustache
+<div class="auth-method">
+  <strong>Authentication Method:</strong> {{method}}
+</div>
+```
+
+### Compiled Template Caching
+Compiled Mustache templates are cached (when possible) under `storage/cache/mustache`.
+
+Helpers / API:
+```php
+output_enable_cache();        // Enable (rebuild engine if Mustache present)
+output_disable_cache();       // Disable caching
+$dir = output_cache_dir();    // Get current cache directory (or null)
+$removed = output_clear_cache(); // Delete compiled template cache files
+output()->setCacheDir('/custom/path/mustache'); // Use custom cache directory
+```
+
+Behavior:
+- On first use, the framework attempts to create `storage/cache/mustache`.
+- If not writable, caching is disabled automatically (falls back to runtime compilation).
+- Changing cache directory requires it to exist or be creatable and writable.
+- Clearing cache only removes generated `*.php` compiled templates, preserving the directory.
+
+Error Handling:
+- Attempting to set an unwritable directory throws an Exception.
+- Rendering without installing dependencies (missing `mustache/mustache`) will throw a clear exception when the engine is built.
+

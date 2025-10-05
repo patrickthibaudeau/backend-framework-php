@@ -6,10 +6,42 @@ use DevFramework\Core\Module\ModuleHelper;
 use DevFramework\Core\Module\ModuleManager;
 use DevFramework\Core\Module\LanguageManager;
 use DevFramework\Core\Notifications\NotificationManager; // Added for notification system
+use DevFramework\Core\Output\Output; // Added for Mustache output system
 
 // Load database constants first, then module constants
 require_once __DIR__ . '/Database/constants.php';
 require_once __DIR__ . '/Module/constants.php';
+
+// --- Early Mustache deprecation suppression (before any Mustache class is autoloaded) ---
+if (!function_exists('__df_install_mustache_deprecation_handler')) {
+    function __df_install_mustache_deprecation_handler(): void
+    {
+        static $installed = false;
+        if ($installed) { return; }
+        $env = getenv('MUSTACHE_SUPPRESS_DEPRECATIONS');
+        $suppress = true; // default on
+        if ($env !== false) {
+            $norm = strtolower(trim($env));
+            if (in_array($norm, ['0','false','off','no'], true)) {
+                $suppress = false;
+            }
+        }
+        if (!$suppress) { return; }
+        $prev = set_error_handler(function($errno, $errstr, $errfile = null, $errline = null) use (&$prev) {
+            if (($errno & E_DEPRECATED) && ($errfile && str_contains($errfile, '/mustache/mustache/')) ) {
+                return true; // swallow Mustache deprecations
+            }
+            if (($errno & E_DEPRECATED) && str_contains($errstr, 'Mustache_')) {
+                return true;
+            }
+            if ($prev) { return $prev($errno, $errstr, $errfile, $errline); }
+            return false; // normal handling
+        });
+        $installed = true;
+    }
+}
+__df_install_mustache_deprecation_handler();
+// --- End early Mustache deprecation suppression ---
 
 // Define helper functions first before using them
 if (!function_exists('config')) {
@@ -1155,3 +1187,47 @@ require_once __DIR__ . '/Auth/helpers.php';
 
 // Initialize global database instance
 $DB = DatabaseFactory::initialize();
+
+// Initialize global output renderer
+if (!isset($OUTPUT)) {
+    /** @var Output $OUTPUT */
+    $OUTPUT = Output::getInstance();
+}
+
+if (!function_exists('output')) {
+    /**
+     * Get global Output instance
+     */
+    function output(): Output
+    {
+        global $OUTPUT;
+        return $OUTPUT;
+    }
+}
+
+if (!function_exists('render_template')) {
+    /**
+     * Convenience wrapper for $OUTPUT->renderFromTemplate
+     * @param string $name component_template name
+     * @param array|object $data
+     */
+    function render_template(string $name, array|object $data = []): string
+    {
+        return output()->renderFromTemplate($name, $data);
+    }
+}
+
+// --- Output cache management helpers ---
+if (!function_exists('output_cache_dir')) {
+    function output_cache_dir(): ?string { return output()->getCacheDir(); }
+}
+if (!function_exists('output_clear_cache')) {
+    function output_clear_cache(): int { return output()->clearCache(); }
+}
+if (!function_exists('output_disable_cache')) {
+    function output_disable_cache(): void { output()->disableCache(); }
+}
+if (!function_exists('output_enable_cache')) {
+    function output_enable_cache(): void { output()->enableCache(); }
+}
+// --- End output cache management helpers ---
