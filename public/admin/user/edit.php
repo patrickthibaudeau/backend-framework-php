@@ -25,6 +25,7 @@ if (!$creating) {
         'firstname' => '',
         'lastname' => '',
         'email' => '',
+        'idnumber' => '',
         'status' => 'active',
         'auth' => 'manual'
     ];
@@ -42,6 +43,8 @@ if ($action === 'save_user') {
     $auth = trim($_POST['auth'] ?? ($user->auth ?? 'manual'));
     $username = trim($_POST['username'] ?? ($user->username ?? ''));
     $passwordRaw = $_POST['password'] ?? '';
+    $idnumber = trim($_POST['idnumber'] ?? ($user->idnumber ?? ''));
+    if (strlen($idnumber) > 255) { $idnumber = substr($idnumber,0,255); }
 
     $errors = [];
 
@@ -89,6 +92,7 @@ if ($action === 'save_user') {
                 'password' => $auth === 'manual' ? password_hash($passwordRaw, PASSWORD_DEFAULT) : '',
                 'firstname' => $firstname ?: null,
                 'lastname' => $lastname ?: null,
+                'idnumber' => $idnumber ?: null,
                 'status' => $status ?: 'active',
                 'emailverified' => 0,
                 'lastlogin' => null,
@@ -99,7 +103,7 @@ if ($action === 'save_user') {
             admin_flash('success','User created');
             header('Location: ' . $returnUrl); exit;
         } else {
-            $update = [ 'id'=>$user->id, 'firstname'=>$firstname ?: null, 'lastname'=>$lastname ?: null, 'email'=>$email, 'status'=>$status, 'auth'=>$auth, 'timemodified'=>time() ];
+            $update = [ 'id'=>$user->id, 'firstname'=>$firstname ?: null, 'lastname'=>$lastname ?: null, 'email'=>$email, 'status'=>$status, 'auth'=>$auth, 'idnumber'=>$idnumber ?: null, 'timemodified'=>time() ];
             $DB->update_record('users',$update);
             admin_flash('success','User updated');
             header('Location: ' . $returnUrl); exit;
@@ -155,6 +159,7 @@ $context = [
         'firstname'=>htmlspecialchars($user->firstname ?? '',ENT_QUOTES,'UTF-8'),
         'lastname'=>htmlspecialchars($user->lastname ?? '',ENT_QUOTES,'UTF-8'),
         'email'=>htmlspecialchars($user->email,ENT_QUOTES,'UTF-8'),
+        'idnumber'=>htmlspecialchars($user->idnumber ?? '',ENT_QUOTES,'UTF-8'),
         'status'=>$user->status,
         'auth'=>$currentAuth,
         'is_admin_primary'=>$isAdminPrimary,

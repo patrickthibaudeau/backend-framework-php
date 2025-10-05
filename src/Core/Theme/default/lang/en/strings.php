@@ -47,6 +47,7 @@ $string['export_roles_heading'] = 'Export Roles';
 $string['export_roles_help'] = 'Exports role definitions with capabilities and template inheritance references.';
 $string['field_description'] = 'Description';
 $string['field_firstname'] = 'First Name';
+$string['field_idnumber'] = 'ID Number';
 $string['field_lastname'] = 'Last Name';
 $string['field_name'] = 'Name';
 $string['field_order'] = 'Order';
