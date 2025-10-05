@@ -80,7 +80,7 @@ class AuthInstaller
             $targetVersion = '1'; // Default fallback
 
             if (file_exists($authVersionFile)) {
-                $PLUGIN = new stdClass();
+                $PLUGIN = new \stdClass();
                 include $authVersionFile;
                 $targetVersion = $PLUGIN->version ?? '1';
             }

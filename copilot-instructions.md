@@ -8,7 +8,7 @@
 - **Environment**: Docker-based with Nginx + PHP-FPM via Supervisor
 - **Database**: MySQL 8.4 with Moodle-compatible abstraction layer
 - **Dependency Manager**: Composer
-- **Containerization**: All testing is to be done in the containerized environment
+- **Containerization**: All testing is to be done in the containerized environment. Never test locally.
 
 ## PHP Standards & Style
 - **Always** start PHP files with `<?php` and `declare(strict_types=1);`

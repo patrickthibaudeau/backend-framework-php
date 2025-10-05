@@ -75,6 +75,7 @@ class Output
             // Dependency not yet installed / autoloaded
             throw new Exception('Mustache_Engine class not found. Ensure composer dependencies are installed (composer install).');
         }
+        $projectRoot = dirname(__DIR__, 3);
         $options = [
             'escape' => function ($value) {
                 return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -83,6 +84,15 @@ class Output
         if ($this->cacheEnabled && $this->cacheDir) {
             $options['cache'] = $this->cacheDir;
             $options['cache_file_mode'] = 0644;
+        }
+        // Provide partials loader so {{> header}} / {{> footer}} in theme body file resolve
+        $themePartialsDir = $projectRoot . '/src/Core/Theme/default/templates';
+        if (is_dir($themePartialsDir)) {
+            if (class_exists('Mustache_Loader_FilesystemLoader')) {
+                $options['partials_loader'] = new \Mustache_Loader_FilesystemLoader($themePartialsDir, [
+                    'extension' => '.mustache'
+                ]);
+            }
         }
         $this->withSuppressedMustacheDeprecations(function () use ($options) {
             $this->engine = new \Mustache_Engine($options);
@@ -187,6 +197,8 @@ class Output
         $candidateNames[] = $projectRoot . '/src/Core/' . $pascal . '/templates/' . $templateSlug . '.mustache';
         // Core lowercase fallback
         $candidateNames[] = $projectRoot . '/src/Core/' . strtolower($componentSlug) . '/templates/' . $templateSlug . '.mustache';
+        // NEW: Theme default variant path support (e.g., /src/Core/Theme/default/templates)
+        $candidateNames[] = $projectRoot . '/src/Core/' . $pascal . '/default/templates/' . $templateSlug . '.mustache';
         // Module component (PascalCase) under root /modules (corrected path)
         $candidateNames[] = $projectRoot . '/modules/' . $pascal . '/templates/' . $templateSlug . '.mustache';
         // Module lowercase fallback
@@ -242,6 +254,30 @@ class Output
     public function suppressMustacheDeprecations(bool $suppress = true): void
     {
         $this->suppressMustacheDeprecations = $suppress;
+    }
+
+    /**
+     * Convenience: render the default theme header fragment.
+     * Accepts optional data (page_title, site_name, nav, user, etc.).
+     */
+    public function header(array|object $data = []): string
+    {
+        return $this->renderFromTemplate('theme_header', (array)$data);
+    }
+
+    /**
+     * Convenience: render the default theme footer fragment.
+     * Accepts optional data (footer_links, current_year, extra_footer, etc.).
+     */
+    public function footer(array|object $data = []): string
+    {
+        // Ensure current_year default if not provided
+        if (is_array($data)) {
+            $data['current_year'] = $data['current_year'] ?? date('Y');
+        } elseif (is_object($data) && !isset($data->current_year)) {
+            $data->current_year = date('Y');
+        }
+        return $this->renderFromTemplate('theme_footer', (array)$data);
     }
 
     public static function getInstance(): self

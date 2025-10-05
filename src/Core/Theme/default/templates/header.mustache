@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-50">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="{{meta_description}}" />
+    <meta name="csrf-token" content="{{csrf_token}}" />
+
+    <title>{{#page_title}}{{page_title}} · {{/page_title}}Admin Console</title>
+
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        /* Optional: extend Tailwind config at runtime */
+        tailwind.config = Object.assign({},{
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f5f9ff',
+                            100: '#e0efff',
+                            500: '#1d4ed8',
+                            600: '#1e40af'
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+
+    <!-- Base global styles (utility overrides / custom classes) -->
+    <style>
+        .app-shell-gradient { background: linear-gradient(135deg,#1e3a8a,#1d4ed8,#2563eb); }
+        .focus-ring:focus { outline: 2px solid #2563eb; outline-offset: 2px; }
+    </style>
+
+    {{! Hook: place for additional <head> injections }}
+    {{#extra_head}} {{{extra_head}}} {{/extra_head}}
+</head>
+<body class="h-full min-h-screen flex flex-col text-slate-800 antialiased">
+    <header class="bg-white shadow-sm sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-brand-600 text-white font-semibold">A</span>
+                <span class="font-semibold text-lg">{{site_name}}</span>
+            </div>
+            <nav class="hidden md:flex items-center gap-6 text-sm">
+                {{#nav}}
+                <a href="{{url}}" class="hover:text-brand-600 transition-colors" {{#active}}aria-current="page" class="text-brand-600 font-medium"{{/active}}>{{label}}</a>
+                {{/nav}}
+            </nav>
+            <div class="flex items-center gap-3">
+                {{#user}}
+                <span class="text-sm text-slate-600">Signed in as <strong>{{username}}</strong></span>
+                {{/user}}
+                {{#logout_url}}
+                <a href="{{logout_url}}" class="text-sm text-brand-600 hover:underline">Logout</a>
+                {{/logout_url}}
+            </div>
+        </div>
+    </header>
+    <main id="app-main" class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+

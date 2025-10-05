@@ -522,6 +522,68 @@ if (!function_exists('ensure_framework_initialized_safe')) {
                 }
             }
 
+            // Step 4.7: Default core theme installation / upgrade
+            try {
+                $themeDir = dirname(__DIR__, 2) . '/src/Core/Theme/default';
+                $themeVersionFile = $themeDir . '/version.php';
+                $themeInstallFile = $themeDir . '/db/install.php';
+                $themeUpgradeFile = $themeDir . '/db/upgrade.php';
+                $themePluginName = 'core_theme_default';
+
+                if (file_exists($themeVersionFile)) {
+                    // Ensure maturity constants for version file
+                    if (!defined('MATURITY_ALPHA')) define('MATURITY_ALPHA', 'MATURITY_ALPHA');
+                    if (!defined('MATURITY_BETA')) define('MATURITY_BETA', 'MATURITY_BETA');
+                    if (!defined('MATURITY_RC')) define('MATURITY_RC', 'MATURITY_RC');
+                    if (!defined('MATURITY_STABLE')) define('MATURITY_STABLE', 'MATURITY_STABLE');
+
+                    // Load file version safely
+                    $PLUGIN = new \stdClass();
+                    include $themeVersionFile;
+                    $themeFileVersion = $PLUGIN->version ?? null;
+
+                    if ($themeFileVersion) {
+                        // Current DB version?
+                        $stmt = $pdo->prepare("SELECT value FROM `$pluginsTable` WHERE plugin = ? AND name = 'version'");
+                        $stmt->execute([$themePluginName]);
+                        $themeDbVersion = $stmt->fetchColumn();
+
+                        if (!$themeDbVersion) {
+                            // Not installed yet; prefer running install script if exists
+                            if (file_exists($themeInstallFile)) {
+                                error_log("Framework: Installing default theme (version {$themeFileVersion})");
+                                include $themeInstallFile; // This script sets version record
+                            } else {
+                                // Fallback: directly insert version
+                                $time = time();
+                                $stmt = $pdo->prepare("INSERT INTO `$pluginsTable` (plugin, name, value, timemodified, timecreated) VALUES (?, 'version', ?, ?, ?)");
+                                $stmt->execute([$themePluginName, $themeFileVersion, $time, $time]);
+                                error_log("Framework: Recorded default theme version {$themeFileVersion} (no install.php)");
+                            }
+                        } elseif (version_compare($themeDbVersion, $themeFileVersion, '<')) {
+                            error_log("Framework: Upgrading default theme from {$themeDbVersion} to {$themeFileVersion}");
+                            if (file_exists($themeUpgradeFile)) {
+                                $from_version = $themeDbVersion;
+                                $to_version = $themeFileVersion;
+                                include $themeUpgradeFile; // Apply incremental changes
+                            }
+                            $stmt = $pdo->prepare("UPDATE `$pluginsTable` SET value = ?, timemodified = ? WHERE plugin = ? AND name = 'version'");
+                            $stmt->execute([$themeFileVersion, time(), $themePluginName]);
+                            error_log("Framework: Default theme upgraded to {$themeFileVersion}");
+                        } else {
+                            // Already up to date
+                            // no-op
+                        }
+                    } else {
+                        error_log('Framework: Default theme version file missing version property');
+                    }
+                } else {
+                    error_log('Framework: Default theme version file not found; skipping theme setup');
+                }
+            } catch (Exception $e) {
+                error_log('Framework: Theme installation error: ' . $e->getMessage());
+            }
+
             // Step 5: Module installation and upgrade detection
             $modulesDir = dirname(__DIR__, 2) . '/src/modules';
             if (!is_dir($modulesDir)) {

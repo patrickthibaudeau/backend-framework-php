@@ -590,3 +590,143 @@ Error Handling:
 - Attempting to set an unwritable directory throws an Exception.
 - Rendering without installing dependencies (missing `mustache/mustache`) will throw a clear exception when the engine is built.
 
+## Output Rendering & Theme Layout Helpers
+
+The framework includes an `Output` manager (Mustache-based) plus convenience layout helpers for the default admin theme.
+
+### Header & Footer Convenience Methods
+Two methods simplify page assembly without manually referencing template filenames:
+
+```php
+$OUTPUT->header(array $data = []): string
+$OUTPUT->footer(array $data = []): string
+```
+
+These wrap the default theme's `header.mustache` and `footer.mustache` partials located under:
+```
+src/Core/Theme/default/templates/
+```
+
+#### Typical Use
+```php
+<?php
+require __DIR__ . '/../vendor/autoload.php';
+require __DIR__ . '/../src/Core/helpers.php';
+
+global $OUTPUT;
+
+echo $OUTPUT->header([
+    'page_title' => 'Dashboard',       // Appears in <title>
+    'site_name'  => 'DevFramework',
+    'nav' => [                          // Navigation items (optional)
+        ['url' => '/index.php', 'label' => 'Home'],
+        ['url' => '/dashboard.php', 'label' => 'Dashboard', 'active' => true],
+    ],
+    'user' => [ 'username' => 'admin' ],
+    'logout_url' => '/logout.php',
+    'meta_description' => 'Dashboard overview'
+]);
+
+// --- Your page content here ---
+
+echo '<h1 class="text-2xl font-semibold">Welcome!</h1>';
+
+echo $OUTPUT->footer([
+    'footer_links' => [
+        ['url' => '/privacy.php', 'label' => 'Privacy'],
+        ['url' => '/terms.php',   'label' => 'Terms'],
+    ],
+]);
+```
+
+#### Supported Header Data Keys
+| Key              | Type      | Description |
+|------------------|-----------|-------------|
+| `page_title`     | string    | Prepended to the document title. |
+| `site_name`      | string    | Displayed next to the logo placeholder. |
+| `nav`            | array[]   | Each item: `url`, `label`, optional `active` (truthy). |
+| `user`           | array     | e.g. `['username' => 'admin']` displayed in header right side. |
+| `logout_url`     | string    | If provided, a logout link is shown. |
+| `meta_description` | string  | Populates `<meta name="description">`. |
+| `extra_head`     | string (HTML) | Injected raw before closing `</head>`. |
+
+#### Supported Footer Data Keys
+| Key            | Type      | Description |
+|----------------|-----------|-------------|
+| `footer_links` | array[]   | Each item: `url`, `label`. |
+| `current_year` | int       | Auto-filled if omitted. |
+| `extra_footer` | string (HTML) | Injected before closing `</body>`. |
+| `site_name`    | string    | Used in copyright line if supplied. |
+
+#### Navigation Example
+```php
+$nav = [
+    ['url' => '/index.php', 'label' => 'Home'],
+    ['url' => '/users.php', 'label' => 'Users'],
+    ['url' => '/settings.php', 'label' => 'Settings', 'active' => true],
+];
+echo $OUTPUT->header(['nav' => $nav, 'site_name' => 'DevFramework']);
+```
+
+#### Injecting Extra Head / Footer Content
+```php
+echo $OUTPUT->header([
+  'site_name' => 'DevFramework',
+  'extra_head' => '<link rel="preconnect" href="https://example.cdn" />'
+]);
+// ... content ...
+echo $OUTPUT->footer([
+  'extra_footer' => '<script>console.log("Page loaded")</script>'
+]);
+```
+
+#### When to Use header()/footer() vs `renderFromTemplate('theme_body', ...)`
+| Scenario | Use header()/footer() | Use theme_body |
+|----------|----------------------|----------------|
+| Streaming / progressive output | ✅ Yes | ❌ Not ideal |
+| Need full layout in one render | ❌ | ✅ Yes |
+| Inject content between start/end easily | ✅ | ⚠ Partial (must pass all data up front) |
+| Template composition with Mustache partials only | ⚠ | ✅ |
+
+`theme_body` internally includes the header and footer partials, and is convenient when the **entire** page context is available before rendering.
+
+#### Tailwind & Alpine.js
+The default header automatically includes **Tailwind CSS via CDN**. The footer includes **Alpine.js** (deferred). If you introduce a build pipeline later (e.g., Vite, Webpack), you can replace or disable these by editing:
+```
+src/Core/Theme/default/templates/header.mustache
+src/Core/Theme/default/templates/footer.mustache
+```
+
+#### Example Page Included
+A full demonstration page exists at:
+```
+public/theme-example.php
+```
+It illustrates metric cards, tables, alerts, and environment info using the new helpers.
+
+#### Customizing the Theme
+To override or extend:
+1. Copy the default theme templates to a new theme directory (future multi-theme support can register alternative roots).
+2. Add new partials (e.g., `sidebar.mustache`) and render them inside your content section.
+3. Add keys to your data arrays and reference them in templates using Mustache.
+
+#### Common Patterns
+```php
+// Flash messages (build array and inject into body HTML or create a Mustache partial)
+$alerts = [
+  ['class' => 'bg-blue-50 border-blue-300 text-blue-700', 'message' => 'Welcome back!']
+];
+
+// Build body content manually (or via a separate template)
+$body = '<div class="space-y-4">';
+foreach ($alerts as $a) {
+  $body .= '<div class="rounded border px-4 py-2 ' . htmlspecialchars($a['class']) . '">' . htmlspecialchars($a['message']) . '</div>';
+}
+$body .= '</div>';
+
+echo $OUTPUT->header(['page_title' => 'Messages']);
+echo $body;
+echo $OUTPUT->footer();
+```
+
+> Tip: For large, repeatable sections, consider creating a dedicated Mustache template and calling `renderFromTemplate()` in place of inline HTML.

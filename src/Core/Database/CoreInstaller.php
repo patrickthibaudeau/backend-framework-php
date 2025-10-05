@@ -87,7 +87,7 @@ class CoreInstaller
             $targetVersion = '1'; // Default fallback
 
             if (file_exists($coreVersionFile)) {
-                $PLUGIN = new stdClass();
+                $PLUGIN = new \stdClass();
                 include $coreVersionFile;
                 $targetVersion = $PLUGIN->version ?? '1';
             }
