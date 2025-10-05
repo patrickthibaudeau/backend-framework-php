@@ -1,0 +1,45 @@
+{{! Updated: content only visible if user has can_view; removed unavailable counts message }}
+{{#can_view}}
+<div class="space-y-8">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold mb-2">{{#str}}welcome_heading, theme_default{{/str}}</h1>
+      <p class="text-slate-600 text-sm">{{#str}}welcome_intro, theme_default{{/str}}</p>
+    </div>
+    <div class="text-right text-sm text-slate-500">
+      <div>Environment: <span class="font-medium">{{environment}}</span></div>
+      <div>Timestamp: <span class="font-mono">{{timestamp}}</span></div>
+    </div>
+  </div>
+  {{#has_counts}}
+  <div class="grid gap-4 md:grid-cols-4">
+    <div class="bg-white shadow p-4 rounded"><div class="text-xs uppercase tracking-wide text-slate-500">{{#str}}metric_roles, theme_default{{/str}}</div><div class="text-2xl font-semibold">{{counts.roles}}</div></div>
+    <div class="bg-white shadow p-4 rounded"><div class="text-xs uppercase tracking-wide text-slate-500">{{#str}}metric_capabilities, theme_default{{/str}}</div><div class="text-2xl font-semibold">{{counts.caps}}</div></div>
+    <div class="bg-white shadow p-4 rounded"><div class="text-xs uppercase tracking-wide text-slate-500">{{#str}}metric_users, theme_default{{/str}}</div><div class="text-2xl font-semibold">{{counts.users}}</div></div>
+    <div class="bg-white shadow p-4 rounded"><div class="text-xs uppercase tracking-wide text-slate-500">{{#str}}metric_templates, theme_default{{/str}}</div><div class="text-2xl font-semibold">{{counts.templates}}</div></div>
+  </div>
+  {{/has_counts}}
+  <div class="bg-white p-6 rounded shadow">
+    <h2 class="font-semibold text-lg mb-4">Quick Links</h2>
+    <ul class="list-disc ml-6 space-y-1 text-blue-700 text-sm">
+      <li><a class="hover:underline" href="/admin/index.php">Admin Dashboard</a></li>
+      <li><a class="hover:underline" href="/admin/rbac/roles.php">Manage Roles</a></li>
+      <li><a class="hover:underline" href="/admin/system/health.php">System Health</a></li>
+      <li><a class="hover:underline" href="/health?format=json" target="_blank" rel="noopener">Health JSON</a></li>
+      <li><a class="hover:underline" href="/install-status">Install Status JSON</a></li>
+    </ul>
+  </div>
+  <div class="text-xs text-slate-500">To view the raw API response for this page append <code>?format=json</code> to the URL or send an <code>Accept: application/json</code> header.</div>
+</div>
+{{/can_view}}
+{{^can_view}}
+<!-- Intentionally left blank for users without view capability -->
+<div class="space-y-8">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold mb-2">{{#str}}welcome_heading, theme_default{{/str}}</h1>
+            <p class="text-slate-600 text-sm">{{#str}}welcome_intro, theme_default{{/str}}</p>
+        </div>
+    </div>
+</div>
+{{/can_view}}
