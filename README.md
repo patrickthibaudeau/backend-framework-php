@@ -763,7 +763,7 @@ If you omit `nav` or `drawer_items`, defaults are injected automatically by the 
 ### Default Theme Structure
 ```
 src/Core/Theme/default/
-  templates/          # Mustache partials (header, footer, left_drawer, navigation, icons)
+  templates/          # Mustache partials (header, footer, navigation, left_drawer, icons)
   lang/en/strings.php # Theme language strings (used by {{#str}} helper)
   navigation.php      # Default nav + drawer configuration
   version.php         # Theme plugin version (stored in config_plugins)
@@ -892,3 +892,82 @@ Override search order by registering extra template roots (future enhancement) o
 - Automatic `dirroot` injection into template data
 - Theme version install/upgrade tracked in `config_plugins`
 
+## Email / Mailer
+
+The framework includes a lightweight mailer with pluggable drivers.
+
+Supported drivers:
+- log (default): writes JSON lines to storage/logs/mail.log for local development
+- mail: uses PHP's native mail() function
+- smtp: connects directly to an SMTP server with AUTH LOGIN and STARTTLS/SSL support
+
+Planned: sendmail (wrapper around system sendmail binary)
+
+### Configuration (.env)
+
+```
+MAIL_DRIVER=log          # log | mail | smtp
+MAIL_FROM_ADDRESS=no-reply@example.test
+MAIL_FROM_NAME="DevFramework"
+# Optional reply-to
+# MAIL_REPLY_TO_ADDRESS=support@example.test
+# MAIL_REPLY_TO_NAME="Support"
+# SMTP (only if MAIL_DRIVER=smtp)
+# MAIL_SMTP_HOST=smtp.example.com
+# MAIL_SMTP_PORT=587
+# MAIL_SMTP_USERNAME=your-user
+# MAIL_SMTP_PASSWORD=secret
+# MAIL_SMTP_ENCRYPTION=tls   # tls | ssl | none
+# MAIL_SMTP_TIMEOUT=10
+```
+
+### Basic Usage
+
+```php
+// Simple text email	send_mail('user@example.com', 'Subject', 'Plain body');
+
+// HTML email
+send_mail('user@example.com', 'Welcome', '<h1>Hello</h1><p>Welcome!</p>', true);
+
+// Fluent builder with attachments
+mail_new()
+    ->to('user@example.com', 'User Name')
+    ->subject('Report')
+    ->text('See attached report.')
+    ->attach(__DIR__.'/report.pdf')
+    ->attach('raw string data', 'notes.txt', 'text/plain', true)
+    ->html('<p>See attached <strong>report</strong>.</p>')
+    ;
+$ok = mailer()->send(fn($m)=>$m->to('other@example.com')->subject('Inline builder')->text('Body'));
+```
+
+### SMTP Notes
+
+- Supports: AUTH LOGIN, STARTTLS (explicit TLS), implicit SSL (port 465), or no encryption
+- Valid values for MAIL_SMTP_ENCRYPTION: tls, ssl, none
+- Uses basic username/password authentication (XOAUTH2 not implemented)
+- Enforces peer verification for TLS/SSL
+- Times out based on MAIL_SMTP_TIMEOUT (seconds)
+
+### Attachments
+
+`attach($path)` reads and base64 encodes file. Use `attach($data, 'file.txt', 'text/plain', true)` for raw data.
+
+### Logging Driver
+
+Inspect `storage/logs/mail.log` (or custom path) to view outbound messages:
+Each line is a JSON object containing headers and sizes, facilitating debugging without sending real email.
+
+### Error Handling
+
+All send operations return an array: `[ 'success'=>bool, 'error' => ?string ]`.
+Check result before assuming delivery.
+
+### Limitations
+
+- No queueing / retries built-in
+- No DSN / bounce tracking
+- Minimal header injection protection (sanitizes CR/LF)
+- Only AUTH LOGIN mechanism
+
+For production-critical mail you can later swap for a dedicated library (e.g. Symfony Mailer) while keeping the same helper function interface as an adapter.

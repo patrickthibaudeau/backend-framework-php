@@ -1384,3 +1384,69 @@ if (!function_exists('hasCapability')) {
     }
 }
 
+// --- Mailer helper functions ---
+if (!function_exists('mailer')) {
+    /**
+     * Get shared Mailer instance (lazy loads configuration)
+     */
+    function mailer(): \DevFramework\Core\Mail\Mailer
+    {
+        return \DevFramework\Core\Mail\Mailer::getInstance();
+    }
+}
+
+if (!function_exists('mail_new')) {
+    /**
+     * Create a new MailMessage pre-filled with default From/Reply-To.
+     */
+    function mail_new(): \DevFramework\Core\Mail\MailMessage
+    {
+        return mailer()->newMessage();
+    }
+}
+
+if (!function_exists('send_mail')) {
+    /**
+     * Convenience helper for simple one-off email (text or HTML) to one or more recipients.
+     * @param string|array $to Single email or array of emails
+     * @param string $subject Subject line
+     * @param string $body Body text (plain or HTML)
+     * @param bool $html Treat body as HTML if true
+     * @return array{success:bool,error?:string}
+     */
+    function send_mail(string|array $to, string $subject, string $body, bool $html = false): array
+    {
+        $message = mailer()->newMessage()->subject($subject);
+        $recipients = is_array($to) ? $to : [$to];
+        foreach ($recipients as $addr) {
+            if (is_string($addr) && trim($addr) !== '') {
+                $message->to($addr);
+            }
+        }
+        $html ? $message->html($body) : $message->text($body);
+        return mailer()->send($message);
+    }
+}
+
+if (!function_exists('send_mail_with_attachments')) {
+    /**
+     * Convenience helper to send an email with file path attachments.
+     * @param string|array $to
+     * @param string $subject
+     * @param string $body
+     * @param array $attachments Array of file paths
+     * @param bool $html
+     */
+    function send_mail_with_attachments(string|array $to, string $subject, string $body, array $attachments, bool $html = false): array
+    {
+        $message = mailer()->newMessage()->subject($subject);
+        foreach ((is_array($to)?$to:[$to]) as $addr) { $message->to($addr); }
+        $html ? $message->html($body) : $message->text($body);
+        foreach ($attachments as $path) {
+            if (!is_string($path) || trim($path)==='') { continue; }
+            try { $message->attach($path); } catch (\Throwable $e) { /* ignore unreadable */ }
+        }
+        return mailer()->send($message);
+    }
+}
+// --- End mailer helper functions ---

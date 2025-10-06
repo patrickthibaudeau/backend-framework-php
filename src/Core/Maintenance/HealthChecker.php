@@ -46,6 +46,18 @@ class HealthChecker
             } else {
                 $data['services']['redis'] = 'not_loaded';
             }
+            // Mail driver presence (configuration-based heuristic)
+            $mailDriver = null;
+            if (function_exists('config')) {
+                $mailDriver = config('mail.driver');
+            } else {
+                $mailDriver = getenv('MAIL_DRIVER') ?: null;
+            }
+            if ($mailDriver) {
+                $data['services']['mail'] = 'configured_' . $mailDriver; // e.g., configured_log, configured_mail
+            } else {
+                $data['services']['mail'] = 'unconfigured';
+            }
             // PHP extensions (boolean map for compactness)
             $exts = get_loaded_extensions();
             sort($exts, SORT_STRING | SORT_FLAG_CASE);

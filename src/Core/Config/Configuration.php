@@ -149,6 +149,7 @@ class Configuration
     private function loadFromEnvironment(): void
     {
         // Core framework configuration
+        $basePath = $this->getBasePath();
         $this->config = [
             'app' => [
                 'name' => $this->env('APP_NAME', 'DevFramework Application'),
@@ -195,6 +196,28 @@ class Configuration
                 'driver' => $this->env('SESSION_DRIVER', 'file'),
                 'lifetime' => $this->env('SESSION_LIFETIME', 120),
                 'encrypt' => $this->env('SESSION_ENCRYPT', false),
+            ],
+            // New mail configuration
+            'mail' => [
+                'driver' => $this->env('MAIL_DRIVER', 'log'), // log | mail | smtp (sendmail driver planned)
+                'from' => [
+                    'address' => $this->env('MAIL_FROM_ADDRESS', 'no-reply@example.test'),
+                    'name' => $this->env('MAIL_FROM_NAME', 'DevFramework'),
+                ],
+                'reply_to' => [
+                    'address' => $this->env('MAIL_REPLY_TO_ADDRESS'),
+                    'name' => $this->env('MAIL_REPLY_TO_NAME'),
+                ],
+                'smtp' => [
+                    'host' => $this->env('MAIL_SMTP_HOST'),
+                    'port' => $this->env('MAIL_SMTP_PORT', 587),
+                    'username' => $this->env('MAIL_SMTP_USERNAME'),
+                    'password' => $this->env('MAIL_SMTP_PASSWORD'),
+                    'encryption' => $this->env('MAIL_SMTP_ENCRYPTION', 'tls'), // tls | ssl | none
+                    'timeout' => $this->env('MAIL_SMTP_TIMEOUT', 10),
+                ],
+                'sendmail_path' => $this->env('MAIL_SENDMAIL_PATH', '/usr/sbin/sendmail -t -i'),
+                'log_path' => $this->env('MAIL_LOG_PATH', $basePath . '/storage/logs/mail.log'),
             ],
         ];
     }

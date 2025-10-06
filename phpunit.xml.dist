@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="vendor/autoload.php" colors="true" beStrictAboutTestsThatDoNotTestAnything="false">
+    <testsuites>
+        <testsuite name="DevFramework Test Suite">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+    <coverage processUncoveredFiles="false">
+        <include>
+            <directory suffix=".php">src/Core/Mail</directory>
+        </include>
+    </coverage>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="MAIL_DRIVER" value="log"/>
+    </php>
+</phpunit>
+
