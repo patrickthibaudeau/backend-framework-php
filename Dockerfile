@@ -62,9 +62,11 @@ COPY composer.json composer.lock* ./
 
 # Install Composer dependencies (handle out-of-date lock for newly added packages)
 RUN set -e; \
-    if grep -q '"mustache/mustache"' composer.json && ! grep -q 'mustache/mustache' composer.lock 2>/dev/null; then \
-        echo 'Lock file missing mustache/mustache – updating that package lock entry...'; \
-        composer update mustache/mustache --no-dev --no-scripts --no-interaction; \
+    if grep -q '"mustache/mustache"' composer.json; then \
+        if [ -f composer.lock ] && ! grep -q 'mustache/mustache' composer.lock; then \
+            echo 'Lock file present but missing mustache/mustache – performing targeted update...'; \
+            composer update mustache/mustache --no-dev --no-scripts --no-interaction; \
+        fi; \
     fi; \
     composer install --no-dev --optimize-autoloader --no-scripts; \
     chown -R www-data:www-data /var/www
