@@ -22,6 +22,26 @@ ksort($servicesView);
 
 $extensions = array_keys($data['php_extensions'] ?? []);
 
+// Optional phpinfo capture (admin-only page already protected by _bootstrap_admin.php)
+$showPhpInfo = isset($_GET['phpinfo']) && $_GET['phpinfo'] === '1';
+$phpinfoHtml = null;
+if ($showPhpInfo) {
+    ob_start();
+    // Limit sections to commonly useful / less sensitive items. Adjust if needed.
+    phpinfo(INFO_GENERAL | INFO_CONFIGURATION | INFO_MODULES | INFO_ENVIRONMENT);
+    $raw = ob_get_clean();
+    // Strip outer HTML/HEAD/BODY tags to embed cleanly inside our template container
+    $raw = preg_replace('/<!DOCTYPE.*?>/is', '', $raw);
+    $raw = preg_replace('/<html.*?>/is', '', $raw);
+    $raw = preg_replace('/<head>.*?<\/head>/is', '', $raw);
+    $raw = preg_replace('/<body.*?>/is', '', $raw);
+    $raw = preg_replace('/<\/html>.*/is', '', $raw);
+    $raw = preg_replace('/<\/body>/is', '', $raw);
+    // Add small wrapper class replacements to avoid global style collision
+    $raw = str_replace('<table', '<table class="min-w-full text-xs border mb-6"', $raw);
+    $phpinfoHtml = $raw;
+}
+
 $context = [
     'page_title' => 'System Health',
     'home_link' => '../index.php',
@@ -35,6 +55,8 @@ $context = [
     'has_extensions' => count($extensions) > 0,
     'has_error' => isset($data['error']),
     'error_message' => $data['error'] ?? null,
+    'show_phpinfo' => $showPhpInfo,
+    'phpinfo_html' => $phpinfoHtml,
 ];
 
 echo $OUTPUT->header([
