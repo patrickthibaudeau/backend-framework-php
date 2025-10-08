@@ -33,12 +33,25 @@ class Mailer
 
     private function createDriver(array $config): MailDriverInterface
     {
-        $driver = $config['driver'] ?? 'log';
+        $raw = $config['driver'] ?? 'log';
+        // Normalize and strip inline comments (e.g., "smtp  # comment")
+        $rawStr = (string)$raw;
+        if (str_contains($rawStr, '#')) {
+            $rawStr = substr($rawStr, 0, strpos($rawStr, '#'));
+        }
+        $driver = strtolower(trim($rawStr));
+        if ($driver === '' || $driver === null) {
+            $driver = 'log';
+        }
+        // Normalize legacy aliases
+        if ($driver === 'native') { $driver = 'mail'; }
+        $defaultLog = function_exists('storage_path') ? storage_path('logs/mail.log') : sys_get_temp_dir().'/mail.log';
+        $logPath = isset($config['log_path']) && trim((string)$config['log_path']) !== '' ? (string)$config['log_path'] : $defaultLog;
         return match($driver) {
-            'log' => new \DevFramework\Core\Mail\LogMailDriver($config['log_path'] ?? (function_exists('storage_path') ? storage_path('logs/mail.log') : sys_get_temp_dir().'/mail.log')),
+            'log' => new \DevFramework\Core\Mail\LogMailDriver($logPath),
             'mail' => new \DevFramework\Core\Mail\NativeMailDriver(),
             'smtp' => new \DevFramework\Core\Mail\SmtpMailDriver($config['smtp'] ?? [], ['app_url' => (function_exists('config') ? (config('app.url') ?? null) : null)]),
-            default => new \DevFramework\Core\Mail\LogMailDriver($config['log_path'] ?? (function_exists('storage_path') ? storage_path('logs/mail.log') : sys_get_temp_dir().'/mail.log'))
+            default => new \DevFramework\Core\Mail\LogMailDriver($logPath)
         };
     }
 
@@ -87,6 +100,12 @@ class Mailer
 
     public function getDriverName(): string
     {
-        return $this->config['driver'] ?? 'log';
+        $raw = $this->config['driver'] ?? 'log';
+        $rawStr = (string)$raw;
+        if (str_contains($rawStr, '#')) { $rawStr = substr($rawStr, 0, strpos($rawStr, '#')); }
+        $driver = strtolower(trim($rawStr));
+        if ($driver === '' || $driver === null) { $driver = 'log'; }
+        if ($driver === 'native') { $driver = 'mail'; }
+        return $driver;
     }
 }

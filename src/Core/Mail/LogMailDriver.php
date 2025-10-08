@@ -8,6 +8,9 @@ class LogMailDriver implements MailDriverInterface
 {
     public function __construct(private string $logPath)
     {
+        if (trim($this->logPath) === '') {
+            throw new \InvalidArgumentException('Mail log path must not be empty.');
+        }
         $dir = dirname($this->logPath);
         if (!is_dir($dir)) { @mkdir($dir, 0755, true); }
     }
@@ -27,8 +30,9 @@ class LogMailDriver implements MailDriverInterface
             'attachments' => array_map(fn($a)=>['filename'=>$a['filename'],'mime'=>$a['mime'],'size'=>strlen(base64_decode($a['content']))], $message->attachments),
             'headers' => $message->headers,
         ];
-        $line = json_encode($record, JSON_UNESCAPED_SLASHES) . PHP_EOL;
-        $ok = @file_put_contents($this->logPath, $line, FILE_APPEND | LOCK_EX) !== false;
+        // Pretty-print JSON for readability in the log file
+        $entry = json_encode($record, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . PHP_EOL . PHP_EOL;
+        $ok = @file_put_contents($this->logPath, $entry, FILE_APPEND | LOCK_EX) !== false;
         if (!$ok) {
             return ['success'=>false,'error'=>'Unable to write mail log'];
         }

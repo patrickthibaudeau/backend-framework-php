@@ -1,4 +1,10 @@
 services:
+  mailhog:
+    platform: linux/amd64
+    image: 'docker.io/mailhog/mailhog'
+    ports:
+      - '127.0.0.1:8025:8025'
+      - '127.0.0.1:1025:1025'
   web:
     build: .
     ports:
@@ -8,6 +14,7 @@ services:
       - ./src:/var/www/src
       - ./composer.json:/var/www/composer.json
       - ./storage/logs:/var/log/app
+      - ./storage/logs/mail:/var/www/storage/logs/
     env_file:
       - .env.docker
     restart: unless-stopped

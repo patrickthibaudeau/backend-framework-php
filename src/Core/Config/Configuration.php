@@ -150,6 +150,14 @@ class Configuration
     {
         // Core framework configuration
         $basePath = $this->getBasePath();
+
+        // Helper: normalize mail driver string early so downstream consumers are consistent
+        // - trims whitespace
+        // - strips inline comments after '#'
+        // - lowercases
+        // - defaults empty to 'log'
+        // - maps legacy 'native' -> 'mail'
+        // Implemented as a private method below.
         $this->config = [
             'app' => [
                 'name' => $this->env('APP_NAME', 'DevFramework Application'),
@@ -199,7 +207,7 @@ class Configuration
             ],
             // New mail configuration
             'mail' => [
-                'driver' => $this->env('MAIL_DRIVER', 'log'), // log | mail | smtp (sendmail driver planned)
+                'driver' => $this->normalizeMailDriver($this->env('MAIL_DRIVER', 'log')), // log | mail | smtp (sendmail driver planned)
                 'from' => [
                     'address' => $this->env('MAIL_FROM_ADDRESS', 'no-reply@example.test'),
                     'name' => $this->env('MAIL_FROM_NAME', 'DevFramework'),
@@ -220,6 +228,18 @@ class Configuration
                 'log_path' => $this->env('MAIL_LOG_PATH', $basePath . '/storage/logs/mail.log'),
             ],
         ];
+    }
+
+    private function normalizeMailDriver(mixed $raw): string
+    {
+        $s = (string)($raw ?? '');
+        if (str_contains($s, '#')) {
+            $s = substr($s, 0, strpos($s, '#'));
+        }
+        $s = strtolower(trim($s));
+        if ($s === '' || $s === null) { $s = 'log'; }
+        if ($s === 'native') { $s = 'mail'; }
+        return $s;
     }
 
     /**
